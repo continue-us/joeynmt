@@ -3,10 +3,66 @@
 Module to implement training loss
 """
 
+import math
 import torch
 from torch import nn, Tensor
 from torch.autograd import Variable
 
+class vMF(nn.Module):
+    """ Von Mises Fisher Loss """
+    @staticmethod
+    def _bessel(k):
+        # https://en.wikipedia.org/wiki/Bessel_function#Modified_Bessel_functions:_I%CE%B1,_K%CE%B1
+        
+        
+    def __init__(self, embed_dim, pad_index):
+        self.m = embed_dim
+        self.pad_index = pad_index
+
+    def forward(outputs, targets, target_embeddings, eval=False):
+
+        # approximation of LogC(m, k)
+        def logcmkappox(d, z):
+            v = d/2-1
+            return torch.sqrt((v+1)*(v+1)+z*z) - (v-1)*torch.log(v-1 + torch.sqrt((v+1)*(v+1)+z*z))
+
+        loss = 0
+        cosine_loss = 0
+        outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
+
+        batch_size = outputs.size(0)
+
+        for i, (out_t, targ_t) in enumerate(zip(outputs, targets)):
+            out_t = out_t.view(-1, out_t.size(2))
+            out_vec_t = out_t
+
+            kappa_times_mean = out_vec_t
+            tar_vec_t = target_embeddings(targ_t)
+            tar_vec_t = tar_vec_t.view(-1, tar_vec_t.size(2))
+
+            kappa = out_vec_t.norm(p=2, dim=-1) #*tar_vec_t.norm(p=2,dim=-1)
+
+            tar_vec_norm_t = torch.nn.functional.normalize(tar_vec_t, p=2, dim=-1)
+            out_vec_norm_t = torch.nn.functional.normalize(out_vec_t, p=2, dim=-1)
+
+            cosine_loss_t = (1.0-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1)).masked_select(targ_t.view(-1).ne(onmt.Constants.PAD)).sum()
+
+            lambda2 = 0.1
+            lambda1 = 0.02
+            # nll_loss = - logcmk(kappa) + kappa*(lambda2-lambda1*(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
+            # nll_loss = - logcmk(kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
+            nll_loss = logcmkappox(self.m, kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
+
+            loss_t = nll_loss.masked_select(targ_t.view(-1).ne(self.pad_index)).sum()
+            loss += loss_t.data[0]
+            cosine_loss += cosine_loss_t.data[0]
+
+            if not eval:
+                loss_t.div(batch_size).backward()
+
+        grad_output = None if outputs.grad is None else outputs.grad.data
+        return loss, grad_output, cosine_loss
+        
 
 class XentLoss(nn.Module):
     """

@@ -461,7 +461,6 @@ class TransformerDecoder(Decoder):
     A transformer decoder with N masked layers.
     Decoder layers are masked so that an attention head cannot see the future.
     """
-
     def __init__(self,
                  num_layers: int = 4,
                  num_heads: int = 8,
@@ -499,7 +498,8 @@ class TransformerDecoder(Decoder):
         self.layer_norm = nn.LayerNorm(hidden_size, eps=1e-6)
 
         self.emb_dropout = nn.Dropout(p=emb_dropout)
-        self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
+
+        # self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
 
         if freeze:
             freeze_params(self)
@@ -540,7 +540,9 @@ class TransformerDecoder(Decoder):
                       src_mask=src_mask, trg_mask=trg_mask)
 
         x = self.layer_norm(x)
-        output = self.output_layer(x)
+
+        output = x
+        # output = self.output_layer(x)
 
         return output, x, None, None
 

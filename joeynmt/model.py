@@ -76,16 +76,23 @@ class Model(nn.Module):
                              "{`loss`, `encode`, `decode`}.")
 
         return_tuple = (None, None, None, None)
-        if return_type == "loss":
+        if "loss" in return_type:
             assert self.loss_function is not None
 
-            out, _, _, _ = self._encode_decode(**kwargs)
+            if True: # "vmf" in return_type:
 
-            # compute log probs
-            log_probs = F.log_softmax(out, dim=-1)
+                preds, _, _, _ = self._encode_decode(**kwargs)
 
-            # compute batch loss
-            batch_loss = self.loss_function(log_probs, kwargs["trg"])
+                # compute batch loss
+                batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed, eval=not self.training)
+            else:
+                out, _, _, _ = self._encode_decode(**kwargs)
+
+                # compute log probs
+                log_probs = F.log_softmax(out, dim=-1)
+
+                # compute batch loss
+                batch_loss = self.loss_function(log_probs, kwargs["trg"])
 
             # return batch loss
             #     = sum over all elements in batch that are not pad
