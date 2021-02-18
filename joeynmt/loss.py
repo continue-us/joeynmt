@@ -10,11 +10,6 @@ from torch.autograd import Variable
 
 class vMF(nn.Module):
     """ Von Mises Fisher Loss """
-    @staticmethod
-    def _bessel(k):
-        # https://en.wikipedia.org/wiki/Bessel_function#Modified_Bessel_functions:_I%CE%B1,_K%CE%B1
-        
-        
     def __init__(self, embed_dim, pad_index):
         self.m = embed_dim
         self.pad_index = pad_index
@@ -61,7 +56,7 @@ class vMF(nn.Module):
                 loss_t.div(batch_size).backward()
 
         grad_output = None if outputs.grad is None else outputs.grad.data
-        return loss, grad_output, cosine_loss
+        return loss
         
 
 class XentLoss(nn.Module):
