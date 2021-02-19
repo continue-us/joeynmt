@@ -85,7 +85,7 @@ class PretrainedEmbeddings(nn.Module):
 
 
         super().__init__()
-
+        self.embedding_dim = ft.get_dimension()
         self.lut = nn.Embedding.from_pretrained(ft)
         if freeze:
             freeze_params(self)
