@@ -500,6 +500,7 @@ class TransformerDecoder(Decoder):
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 
         # self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
+        self.output_layer = self.layers[-1].feed_forward.pwff_layer[-2]
 
         if freeze:
             freeze_params(self)

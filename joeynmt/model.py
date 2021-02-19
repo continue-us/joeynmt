@@ -279,7 +279,8 @@ def build_model(cfg: dict = None,
             raise ConfigurationError(
                 "For tied_softmax, the decoder embedding_dim and decoder "
                 "hidden_size must be the same."
-                "The decoder must be a Transformer.")
+                "The decoder must be a Transformer."
+                f"shapes: output_layer.weight: {model.decoder.output_layer.weight.shape}; target_embed.lut.weight:{trg_embed.lut.weight.shape}")
 
     # custom initialization of model parameters
     initialize_model(model, cfg, src_padding_idx, trg_padding_idx)

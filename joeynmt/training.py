@@ -17,7 +17,7 @@ import numpy as np
 
 import torch
 from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
 
@@ -68,8 +68,8 @@ class TrainManager:
 
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
-        self.tb_writer = SummaryWriter(
-            log_dir=self.model_dir + "/tensorboard/")
+        # self.tb_writer = SummaryWriter(
+        #     log_dir=self.model_dir + "/tensorboard/")
 
         # model
         self.model = model
@@ -182,7 +182,7 @@ class TrainManager:
                 raise ImportError(
                     "Please install apex from "
                     "https://www.github.com/nvidia/apex "
-                    "to use fp16 training.") from no_apex
+                    "to use fp16 training.") # from no_apex
             self.model, self.optimizer = amp.initialize(
                 self.model, self.optimizer, opt_level='O1')
             # opt level: one of {"O0", "O1", "O2", "O3"}
@@ -412,8 +412,8 @@ class TrainManager:
 
                     # log learning progress
                     if self.stats.steps % self.logging_freq == 0:
-                        self.tb_writer.add_scalar("train/train_batch_loss",
-                                                  batch_loss, self.stats.steps)
+                        # self.tb_writer.add_scalar("train/train_batch_loss",
+                        #                           batch_loss, self.stats.steps)
                         elapsed = time.time() - start - total_valid_duration
                         elapsed_tokens = self.stats.total_tokens - start_tokens
                         logger.info(
@@ -451,7 +451,7 @@ class TrainManager:
                     self.stats.best_ckpt_iter, self.stats.best_ckpt_score,
                     self.early_stopping_metric)
 
-        self.tb_writer.close()  # close Tensorboard writer
+        # self.tb_writer.close()  # close Tensorboard writer
 
     def _train_step(self, batch: Batch) -> Tensor:
         """
@@ -525,12 +525,12 @@ class TrainManager:
                 n_gpu=self.n_gpu
             )
 
-        self.tb_writer.add_scalar(
-            "valid/valid_loss", valid_loss, self.stats.steps)
-        self.tb_writer.add_scalar(
-            "valid/valid_score", valid_score, self.stats.steps)
-        self.tb_writer.add_scalar(
-            "valid/valid_ppl", valid_ppl, self.stats.steps)
+        # self.tb_writer.add_scalar(
+        #     "valid/valid_loss", valid_loss, self.stats.steps)
+        # self.tb_writer.add_scalar(
+        #     "valid/valid_score", valid_score, self.stats.steps)
+        # self.tb_writer.add_scalar(
+        #     "valid/valid_ppl", valid_ppl, self.stats.steps)
 
         if self.early_stopping_metric == "loss":
             ckpt_score = valid_loss
@@ -588,7 +588,7 @@ class TrainManager:
                 indices=self.log_valid_sents,
                 output_prefix="{}/att.{}".format(
                     self.model_dir, self.stats.steps),
-                tb_writer=self.tb_writer, steps=self.stats.steps)
+                steps=self.stats.steps)
 
         return valid_duration
 

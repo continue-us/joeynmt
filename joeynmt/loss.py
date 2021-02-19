@@ -11,36 +11,38 @@ from torch.autograd import Variable
 class vMF(nn.Module):
     """ Von Mises Fisher Loss """
     def __init__(self, embed_dim, pad_index):
+        super().__init__()
         self.m = embed_dim
         self.pad_index = pad_index
+        # self._param_init = nn.NLLLoss()
 
-    def forward(outputs, targets, target_embeddings, eval=False):
+    def forward(self, outputs, targets, target_embeddings, eval=False):
 
         # approximation of LogC(m, k)
         def logcmkappox(d, z):
             v = d/2-1
             return torch.sqrt((v+1)*(v+1)+z*z) - (v-1)*torch.log(v-1 + torch.sqrt((v+1)*(v+1)+z*z))
 
-        loss = 0
-        cosine_loss = 0
+        loss = []
+        cosine_loss = []
         outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
 
         batch_size = outputs.size(0)
 
         for i, (out_t, targ_t) in enumerate(zip(outputs, targets)):
-            out_t = out_t.view(-1, out_t.size(2))
-            out_vec_t = out_t
+            print(out_t.shape)
+            # out_vec_t = out_t.view(-1, out_t.size(2))
 
-            kappa_times_mean = out_vec_t
+            kappa_times_mean = out_t
             tar_vec_t = target_embeddings(targ_t)
-            tar_vec_t = tar_vec_t.view(-1, tar_vec_t.size(2))
+            # tar_vec_t = tar_vec_t.view(-1, tar_vec_t.size(2))
 
-            kappa = out_vec_t.norm(p=2, dim=-1) #*tar_vec_t.norm(p=2,dim=-1)
+            kappa = out_t.norm(p=2, dim=-1) #*tar_vec_t.norm(p=2,dim=-1)
 
             tar_vec_norm_t = torch.nn.functional.normalize(tar_vec_t, p=2, dim=-1)
-            out_vec_norm_t = torch.nn.functional.normalize(out_vec_t, p=2, dim=-1)
+            out_vec_norm_t = torch.nn.functional.normalize(out_t, p=2, dim=-1)
 
-            cosine_loss_t = (1.0-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1)).masked_select(targ_t.view(-1).ne(onmt.Constants.PAD)).sum()
+            cosine_loss_t = (1.0-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1)).masked_select(targ_t.view(-1).ne(self.pad_index)).sum()
 
             lambda2 = 0.1
             lambda1 = 0.02
@@ -49,14 +51,16 @@ class vMF(nn.Module):
             nll_loss = logcmkappox(self.m, kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
 
             loss_t = nll_loss.masked_select(targ_t.view(-1).ne(self.pad_index)).sum()
-            loss += loss_t.data[0]
-            cosine_loss += cosine_loss_t.data[0]
+    
+            loss.append(loss_t)
+            cosine_loss.append(cosine_loss_t)
 
-            if not eval:
-                loss_t.div(batch_size).backward()
+            # if not eval:
+            #     loss_t.div(batch_size).backward()
 
         grad_output = None if outputs.grad is None else outputs.grad.data
-        return loss
+        input([t.shape for t in loss])
+        return torch.cat(loss).sum()
         
 
 class XentLoss(nn.Module):

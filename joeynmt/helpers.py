@@ -16,7 +16,7 @@ import pkg_resources
 
 import torch
 from torch import nn, Tensor
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
 import yaml
@@ -198,7 +198,7 @@ def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
 def store_attention_plots(attentions: np.array, targets: List[List[str]],
                           sources: List[List[str]],
                           output_prefix: str, indices: List[int],
-                          tb_writer: Optional[SummaryWriter] = None,
+                          tb_writer = None,
                           steps: int = 0) -> None:
     """
     Saves attention plots.
