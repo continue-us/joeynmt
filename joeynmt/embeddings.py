@@ -53,3 +53,52 @@ class Embeddings(nn.Module):
     def __repr__(self):
         return "%s(embedding_dim=%d, vocab_size=%d)" % (
             self.__class__.__name__, self.embedding_dim, self.vocab_size)
+
+class PretrainedEmbeddings(nn.Module):
+
+    """
+    Simple Bert embeddings class
+    """
+
+    # pylint: disable=unused-argument
+    def __init__(self,
+                 embedding_dim: int = 64,
+                 scale: bool = False,
+                 vocab_size: int = 0,
+                 padding_idx: int = 1,
+                 freeze: bool = False,
+                 **kwargs):
+        """
+        Create new embeddings for the vocabulary.
+        Use scaling for the Transformer.
+
+        :param embedding_dim:
+        :param scale:
+        :param vocab_size:
+        :param padding_idx:
+        :param freeze: freeze the embeddings during training
+        """
+        
+        import fasttext.util
+        fasttext.util.download_model('en', if_exists='ignore')
+        ft = fasttext.load_moel('cc.en.300.bin')
+
+
+        super().__init__()
+
+        self.lut = nn.Embedding.from_pretrained(ft)
+        if freeze:
+            freeze_params(self)
+
+    # pylint: disable=arguments-differ
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Perform lookup for input `x` in the embedding table.
+
+        :param x: index in the vocabulary
+        :return: embedded representation for `x`
+        """
+        if self.scale:
+            return self.lut(x) * math.sqrt(self.embedding_dim)
+        return self.lut(x)
+
