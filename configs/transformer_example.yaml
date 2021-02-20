@@ -1,25 +1,25 @@
-name: "iwslt14-deen-bpe-transformer"
+name: "transformer-example"
 
 data:
-    src: "de"
-    trg: "en"
-    train: "test/data/iwslt14_sp/train.sp.32000"
-    dev: "test/data/iwslt14_sp/valid.sp.32000"
-    test: "test/data/iwslt14_sp/test.sp.32000"
-    level: "bpe"
+    src: "d"
+    trg: "e"
+    train: "test/data/example/train"
+    dev: "test/data/example/valid"
+    test: "test/data/example/test"
+    level: "word"
     lowercase: True
     max_sent_length: 62
-    src_vocab: "test/data/iwslt14_sp/vocab.txt"
-    trg_vocab: "test/data/iwslt14_sp/vocab.txt"
+    src_vocab: "test/data/example/vocab.full"
+    trg_vocab: "test/data/example/vocab.full"
 
 testing:
     beam_size: 5
     alpha: 1.0
-    postproccess: True
-    bpe_type: "sentencepiece"
-    sacrebleu:
-        remove_whitespace: True
-        tokenize: "13a"
+    postproccess: False
+    # bpe_type: "sentencepiece"
+    # sacrebleu:
+    #     remove_whitespace: True
+    #     tokenize: "13a"
 
 training:
     random_seed: 42
@@ -34,18 +34,18 @@ training:
     learning_rate_min: 0.00000001
     weight_decay: 0.0
     label_smoothing: 0.1
-    batch_size: 8192 # 4096 per device
+    batch_size: 10 # 4096 per device
     batch_type: "token"
     early_stopping_metric: "eval_metric"
     epochs: 100
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "models/iwslt14_deen_sp_transformer_2gpu_fp16"
+    model_dir: "models/continuous_transformer"
     overwrite: True
-    shuffle: True
+    shuffle: False
     use_cuda: True
-    fp16: True
+    fp16: False
     max_output_length: 100
     print_valid_sents: [0, 1, 2, 3, 4]
     keep_last_ckpts: 5
@@ -57,28 +57,28 @@ model:
     init_gain: 1.0
     bias_initializer: "zeros"
     tied_embeddings: True
-    tied_softmax: True
+    tied_softmax: False
     encoder:
         type: "transformer"
-        num_layers: 6
-        num_heads: 4
+        num_layers: 2
+        num_heads: 3
         embeddings:
             embedding_dim: 30
             scale: True
             dropout: 0.
         # typically ff_size = 4 x hidden_size
         hidden_size: 30
-        ff_size: 1024
+        ff_size: 120
         dropout: 0.3
     decoder:
         type: "transformer"
-        num_layers: 6
-        num_heads: 4
+        num_layers: 2
+        num_heads: 3
         embeddings:
             embedding_dim: 30
             scale: True
             dropout: 0.
         # typically ff_size = 4 x hidden_size
         hidden_size: 30
-        ff_size: 1024
+        ff_size: 120
         dropout: 0.3
