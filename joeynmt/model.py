@@ -9,7 +9,7 @@ from torch import Tensor
 import torch.nn.functional as F
 
 from joeynmt.initialization import initialize_model
-from joeynmt.embeddings import Embeddings
+from joeynmt.embeddings import Embeddings, PretrainedEmbeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
@@ -52,6 +52,10 @@ class Model(nn.Module):
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
         self._loss_function = None # set by the TrainManager
 
+        # TODO if continue-us
+        self.ft_embedding = PretrainedEmbeddings(self.trg_vocab)
+        
+
     @property
     def loss_function(self):
         return self._x
@@ -80,12 +84,13 @@ class Model(nn.Module):
             assert self.loss_function is not None
 
             if True: # self.loss_function==vMF:
-
+                #print('USING vMF')
+                
                 preds, _, _, _ = self._encode_decode(**kwargs)
 
                 # compute batch loss
-                batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed, eval=not self.training)
-                
+                batch_loss = self.loss_function(preds, kwargs["trg"], self.ft_embedding, eval=not self.training)
+                #print("LOSS ", batch_loss)
             else:
                 out, _, _, _ = self._encode_decode(**kwargs)
 
@@ -238,6 +243,8 @@ def build_model(cfg: dict = None,
             **cfg["decoder"]["embeddings"], vocab_size=len(trg_vocab),
             padding_idx=trg_padding_idx)
 
+    # TODO if continue-us 
+    
     # build encoder
     enc_dropout = cfg["encoder"].get("dropout", 0.)
     enc_emb_dropout = cfg["encoder"]["embeddings"].get("dropout", enc_dropout)

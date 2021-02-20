@@ -3,9 +3,9 @@ name: "reverse_experiment"
 data:
     src: "src"
     trg: "trg"
-    train: "test/data/reverse/train"
-    dev: "test/data/reverse/dev"
-    test: "test/data/reverse/test"
+    train: "train"
+    dev: "dev"
+    test: "test"
     level: "word"
     lowercase: False
     max_sent_length: 25
@@ -24,7 +24,7 @@ training:
     adam_betas: [0.9, 0.999]
     scheduling: "plateau"
     loss: "crossentropy"
-    learning_rate: 0.0002
+    learning_rate: 0.002
     learning_rate_min: 0.00000001
     label_smoothing: 0.1
     weight_decay: 0.0
@@ -35,7 +35,7 @@ training:
     logging_freq: 100
     eval_metric: "bleu"
     model_dir: "models/transformer_reverse"
-    overwrite: False
+    overwrite: True
     shuffle: True
     use_cuda: False
     max_output_length: 30
@@ -44,32 +44,34 @@ training:
 
 
 model:
-    initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
-    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
-    bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
-    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
-    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
-    tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
-    tied_softmax: True
+    initializer: "xavier"
+    embed_initializer: "xavier"
+    embed_init_gain: 1.0
+    init_gain: 1.0
+    bias_initializer: "zeros"
+    tied_embeddings: True
+    tied_softmax: False
     encoder:
         type: "transformer"
         num_layers: 2
-        num_heads: 4
+        num_heads: 3
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 30
             scale: True
+            dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 64
-        ff_size: 256
-        dropout: 0.1
+        hidden_size: 30
+        ff_size: 120
+        dropout: 0.3
     decoder:
         type: "transformer"
         num_layers: 2
-        num_heads: 4
+        num_heads: 3
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 30
             scale: True
+            dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 64
-        ff_size: 256
-        dropout: 0.1
+        hidden_size: 30
+        ff_size: 120
+        dropout: 0.3

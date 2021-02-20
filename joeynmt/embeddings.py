@@ -1,7 +1,9 @@
 import math
 from torch import nn, Tensor
 from joeynmt.helpers import freeze_params
-
+import torch
+import numpy as np
+from joeynmt.constants import PAD_TOKEN
 
 class Embeddings(nn.Module):
 
@@ -53,3 +55,51 @@ class Embeddings(nn.Module):
     def __repr__(self):
         return "%s(embedding_dim=%d, vocab_size=%d)" % (
             self.__class__.__name__, self.embedding_dim, self.vocab_size)
+
+class PretrainedEmbeddings(nn.Module):
+
+    """
+    Loads pretrained embeddings class
+    """
+
+    # pylint: disable=unused-argument
+    def __init__(self, trg_vocab):
+        """
+        Create new embeddings for the vocabulary.
+        Use scaling for the Transformer.
+        :param embedding_dim:
+        :param scale:
+        :param vocab_size:
+        :param padding_idx:
+        :param freeze: freeze the embeddings during training
+        """
+        
+        import fasttext.util
+        # TODO add support for other languages
+        fasttext.util.download_model('en', if_exists='ignore')
+        ft = fasttext.load_model('cc.en.300.bin')
+        
+        # Create smaller embeddings, to test on reverse
+        fasttext.util.reduce_model(ft, 30)
+        ft.save_model('cc.en.30.bin')
+
+        self.embedding_dim = ft.get_dimension()
+        embedding_matrix = np.zeros((len(trg_vocab), self.embedding_dim))
+        for i, word in enumerate(trg_vocab.itos):
+            embedding_matrix[i:] = ft.get_word_vector(word)
+
+        super().__init__()
+        self.lut= nn.Embedding(len(trg_vocab), self.embedding_dim, 
+            padding_idx=trg_vocab.stoi[PAD_TOKEN])
+        self.lut.weight = nn.Parameter(torch.from_numpy(embedding_matrix))
+
+    # pylint: disable=arguments-differ
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Perform lookup for input `x` in the embedding table.
+        :param x: index in the vocabulary
+        :return: embedded representation for `x`
+        """
+        #if self.scale:
+        #    return self.lut(x) * math.sqrt(self.embedding_dim)
+        return self.lut(x)

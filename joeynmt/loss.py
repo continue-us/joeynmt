@@ -30,7 +30,7 @@ class vMF(nn.Module):
         batch_size = outputs.size(0)
 
         for i, (out_t, targ_t) in enumerate(zip(outputs, targets)):
-            print(out_t.shape)
+            #print(out_t.shape)
             # out_vec_t = out_t.view(-1, out_t.size(2))
 
             kappa_times_mean = out_t
