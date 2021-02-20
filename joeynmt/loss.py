@@ -55,12 +55,14 @@ class vMF(nn.Module):
             loss.append(loss_t)
             cosine_loss.append(cosine_loss_t)
 
+            # joey does this in training.py:
             # if not eval:
             #     loss_t.div(batch_size).backward()
 
         grad_output = None if outputs.grad is None else outputs.grad.data
-        input([t.shape for t in loss])
-        return torch.cat(loss).sum()
+
+        rloss =  torch.stack(loss).sum()
+        return rloss
         
 
 class XentLoss(nn.Module):

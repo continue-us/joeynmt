@@ -79,12 +79,13 @@ class Model(nn.Module):
         if "loss" in return_type:
             assert self.loss_function is not None
 
-            if True: # "vmf" in return_type:
+            if True: # self.loss_function==vMF:
 
                 preds, _, _, _ = self._encode_decode(**kwargs)
 
                 # compute batch loss
                 batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed, eval=not self.training)
+                
             else:
                 out, _, _, _ = self._encode_decode(**kwargs)
 

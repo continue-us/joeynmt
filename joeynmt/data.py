@@ -193,6 +193,7 @@ def make_data_iter(dataset: Dataset,
             repeat=False, dataset=dataset,
             batch_size=batch_size, batch_size_fn=batch_size_fn,
             train=False, sort=False)
+    # input(f"data_iter: batchsize={batch_size}")
 
     return data_iter
 

@@ -379,9 +379,18 @@ class TrainManager:
             batch_loss = 0
 
             for i, batch in enumerate(iter(train_iter)):
+                # try:
+                #     input(self.model.trg_vocab.arrays_to_sentences(
+                #         batch.trg[0].cpu().numpy()
+                #     ))
+                # except TypeError as RE:
+                #     print(RE)
+                #     print([(t.shape, t) for t in batch.trg])
+                #     exit()
+
                 # create a Batch object from torchtext batch
                 batch = self.batch_class(batch, self.model.pad_index,
-                                         use_cuda=self.use_cuda)
+                    use_cuda=self.use_cuda)
 
                 # get batch loss
                 batch_loss += self._train_step(batch)
