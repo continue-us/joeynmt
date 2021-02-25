@@ -4,6 +4,7 @@ from joeynmt.helpers import freeze_params
 import torch
 import numpy as np
 from joeynmt.constants import PAD_TOKEN
+import fasttext.util
 
 class Embeddings(nn.Module):
 
@@ -63,7 +64,7 @@ class PretrainedEmbeddings(nn.Module):
     """
 
     # pylint: disable=unused-argument
-    def __init__(self, trg_vocab):
+    def __init__(self, src_vocab, trg_vocab):
         """
         Create new embeddings for the vocabulary.
         Use scaling for the Transformer.
@@ -73,25 +74,30 @@ class PretrainedEmbeddings(nn.Module):
         :param padding_idx:
         :param freeze: freeze the embeddings during training
         """
-        
-        import fasttext.util
+        super().__init__()
+
         # TODO add support for other languages
-        fasttext.util.download_model('en', if_exists='ignore')
-        ft = fasttext.load_model('cc.en.300.bin')
+        fasttext.util.download_model('de', if_exists='ignore')
+        src_ft = fasttext.load_model('cc.de.300.bin')
+        trg_ft = fasttext.load_model('cc.en.300.bin')
         
         # Create smaller embeddings, to test on reverse
-        fasttext.util.reduce_model(ft, 30)
-        ft.save_model('cc.en.30.bin')
+        #fasttext.util.reduce_model(ft, 30)
+        #ft.save_model('cc.en.30.bin')
 
-        self.embedding_dim = ft.get_dimension()
-        embedding_matrix = np.zeros((len(trg_vocab), self.embedding_dim))
+        self.embedding_dim = src_ft.get_dimension()
+        embedding_matrix = np.zeros((len(src_vocab)+len(trg_vocab), self.embedding_dim))
+        for i, word in enumerate(src_vocab.itos):
+            embedding_matrix[i:] = src_ft.get_word_vector(word)
         for i, word in enumerate(trg_vocab.itos):
-            embedding_matrix[i:] = ft.get_word_vector(word)
+            embedding_matrix[len(src_vocab)+i:] = trg_ft.get_word_vector(word)
 
-        super().__init__()
-        self.lut= nn.Embedding(len(trg_vocab), self.embedding_dim, 
+        self.lut= nn.Embedding(len(src_vocab)+len(trg_vocab), self.embedding_dim, 
             padding_idx=trg_vocab.stoi[PAD_TOKEN])
-        self.lut.weight = nn.Parameter(torch.from_numpy(embedding_matrix))
+        self.lut.weight = nn.Parameter(torch.from_numpy(embedding_matrix).float())
+
+        # always freeze pretrained embeddings
+        freeze_params(self)
 
     # pylint: disable=arguments-differ
     def forward(self, x: Tensor) -> Tensor:

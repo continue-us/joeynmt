@@ -41,20 +41,20 @@ class Model(nn.Module):
         """
         super().__init__()
 
-        self.src_embed = src_embed
-        self.trg_embed = trg_embed
-        self.encoder = encoder
-        self.decoder = decoder
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
+
+        self.src_embed = PretrainedEmbeddings(self.src_vocab, self.trg_vocab)
+        self.trg_embed = self.src_embed
+        self.encoder = encoder
+        self.decoder = decoder
         self.bos_index = self.trg_vocab.stoi[BOS_TOKEN]
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
         self._loss_function = None # set by the TrainManager
 
         # TODO if continue-us
-        self.ft_embedding = PretrainedEmbeddings(self.trg_vocab)
-        
+        #self.trg_embed = PretrainedEmbeddings(self.trg_vocab)
 
     @property
     def loss_function(self):
@@ -89,7 +89,7 @@ class Model(nn.Module):
                 preds, _, _, _ = self._encode_decode(**kwargs)
 
                 # compute batch loss
-                batch_loss = self.loss_function(preds, kwargs["trg"], self.ft_embedding, eval=not self.training)
+                batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed, eval=not self.training)
                 #print("LOSS ", batch_loss)
             else:
                 out, _, _, _ = self._encode_decode(**kwargs)
@@ -278,6 +278,7 @@ def build_model(cfg: dict = None,
                   src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # tie softmax layer with trg embeddings
+    """
     if cfg.get("tied_softmax", False):
         if trg_embed.lut.weight.shape == \
                 model.decoder.output_layer.weight.shape:
@@ -289,7 +290,7 @@ def build_model(cfg: dict = None,
                 "hidden_size must be the same."
                 "The decoder must be a Transformer."
                 f"shapes: output_layer.weight: {model.decoder.output_layer.weight.shape}; target_embed.lut.weight:{trg_embed.lut.weight.shape}")
-
+    """
     # custom initialization of model parameters
     initialize_model(model, cfg, src_padding_idx, trg_padding_idx)
 

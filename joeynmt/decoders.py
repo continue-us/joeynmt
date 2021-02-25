@@ -499,8 +499,8 @@ class TransformerDecoder(Decoder):
 
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 
-        # self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
-        self.output_layer = self.layers[-1].feed_forward.pwff_layer[-2]
+        self.output_layer = nn.Linear(hidden_size, hidden_size, bias=False)
+        #self.output_layer = self.layers[-1].feed_forward.pwff_layer[-2]
 
         if freeze:
             freeze_params(self)
@@ -543,7 +543,8 @@ class TransformerDecoder(Decoder):
         x = self.layer_norm(x)
 
         output = x
-        # output = self.output_layer(x)
+        #print('OUTPUT DIM ', output.shape)
+        output = self.output_layer(x)
 
         return output, x, None, None
 

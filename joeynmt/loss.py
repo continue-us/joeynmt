@@ -42,18 +42,18 @@ class vMF(nn.Module):
             tar_vec_norm_t = torch.nn.functional.normalize(tar_vec_t, p=2, dim=-1)
             out_vec_norm_t = torch.nn.functional.normalize(out_t, p=2, dim=-1)
 
-            cosine_loss_t = (1.0-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1)).masked_select(targ_t.view(-1).ne(self.pad_index)).sum()
+            #cosine_loss_t = (1.0-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1)).masked_select(targ_t.view(-1).ne(self.pad_index)).sum()
 
             lambda2 = 0.1
             lambda1 = 0.02
-            # nll_loss = - logcmk(kappa) + kappa*(lambda2-lambda1*(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
-            # nll_loss = - logcmk(kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
-            nll_loss = logcmkappox(self.m, kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
+            nll_loss = logcmkappox(self.m, kappa) + kappa*(lambda2-lambda1*(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
+            #nll_loss = - logcmkappox(self.m,kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
+            #nll_loss = logcmkappox(self.m, kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*tar_vec_norm_t).sum(dim=-1))
 
             loss_t = nll_loss.masked_select(targ_t.view(-1).ne(self.pad_index)).sum()
     
             loss.append(loss_t)
-            cosine_loss.append(cosine_loss_t)
+            #cosine_loss.append(cosine_loss_t)
 
             # joey does this in training.py:
             # if not eval:
