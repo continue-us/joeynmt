@@ -25,7 +25,7 @@ class vMF(nn.Module):
 
         loss = []
         cosine_loss = []
-        outputs = Variable(outputs.data, requires_grad=(not eval), volatile=eval)
+        #outputs = Variable(outputs.data, requires_grad=True)
 
         batch_size = outputs.size(0)
 
