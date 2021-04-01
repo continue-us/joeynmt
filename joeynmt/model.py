@@ -26,7 +26,7 @@ class Model(nn.Module):
                  encoder: Encoder,
                  decoder: Decoder,
                  src_embed: Embeddings,
-                 trg_embed: Embeddings,
+                 trg_embed: Embeddings, # TODO ignored -> remove
                  src_vocab: Vocabulary,
                  trg_vocab: Vocabulary) -> None:
         """
@@ -44,7 +44,7 @@ class Model(nn.Module):
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
 
-        self.src_embed = PretrainedEmbeddings(self.src_vocab, self.trg_vocab)
+        self.src_embed = src_embed 
         self.trg_embed = self.src_embed
         self.encoder = encoder
         self.decoder = decoder
@@ -225,7 +225,9 @@ def build_model(cfg: dict = None,
     src_padding_idx = src_vocab.stoi[PAD_TOKEN]
     trg_padding_idx = trg_vocab.stoi[PAD_TOKEN]
 
-    src_embed = Embeddings(
+    # TODO if continue-us 
+    src_embed = PretrainedEmbeddings(
+        src_vocab, trg_vocab,
         **cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
         padding_idx=src_padding_idx)
 
@@ -239,11 +241,11 @@ def build_model(cfg: dict = None,
             raise ConfigurationError(
                 "Embedding cannot be tied since vocabularies differ.")
     else:
-        trg_embed = Embeddings(
-            **cfg["decoder"]["embeddings"], vocab_size=len(trg_vocab),
-            padding_idx=trg_padding_idx)
+        src_embed = PretrainedEmbeddings(
+        src_vocab, trg_vocab,
+        **cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
+        padding_idx=src_padding_idx)
 
-    # TODO if continue-us 
     
     # build encoder
     enc_dropout = cfg["encoder"].get("dropout", 0.)

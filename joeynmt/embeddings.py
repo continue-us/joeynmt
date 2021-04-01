@@ -1,9 +1,11 @@
 import math
+from tqdm import tqdm
 from torch import nn, Tensor
 from joeynmt.helpers import freeze_params
 import torch
 import numpy as np
 from joeynmt.constants import PAD_TOKEN
+from joeynmt.vocabulary import Vocabulary
 import fasttext.util
 
 class Embeddings(nn.Module):
@@ -62,9 +64,18 @@ class PretrainedEmbeddings(nn.Module):
     """
     Loads pretrained embeddings class
     """
-
     # pylint: disable=unused-argument
-    def __init__(self, src_vocab, trg_vocab):
+    def __init__(
+            self,
+            src_vocab: Vocabulary,
+            trg_vocab: Vocabulary,
+            embedding_dim: int = 64,
+            scale: bool = False,
+            vocab_size: int = 0,
+            padding_idx: int = 1,
+            freeze: bool = False,
+            **kwargs
+        ):
         """
         Create new embeddings for the vocabulary.
         Use scaling for the Transformer.
@@ -76,21 +87,27 @@ class PretrainedEmbeddings(nn.Module):
         """
         super().__init__()
 
+        self.scale = scale
+
         # TODO add support for other languages
-        fasttext.util.download_model('de', if_exists='ignore')
-        src_ft = fasttext.load_model('cc.de.300.bin')
-        # trg_ft = fasttext.load_model('cc.en.300.bin')
+        # fasttext.util.download_model('de', if_exists='ignore')
+        src_ft = fasttext.load_model('cc.de.30.bin')
+        trg_ft = fasttext.load_model('cc.en.30.bin')
         
         # Create smaller embeddings, to test on reverse
-        fasttext.util.reduce_model(src_ft, 30)
-        src_ft.save_model('cc.en.30.bin')
+        # fasttext.util.reduce_model(src_ft, 30)
+        # src_ft.save_model('cc.en.30.bin')
 
         self.embedding_dim = src_ft.get_dimension()
-        embedding_matrix = np.zeros((len(src_vocab)+len(trg_vocab), self.embedding_dim))
-        for i, word in enumerate(src_vocab.itos):
-            embedding_matrix[i:] = src_ft.get_word_vector(word)
-        for i, word in enumerate(trg_vocab.itos):
-            embedding_matrix[len(src_vocab)+i:] = trg_ft.get_word_vector(word)
+
+        vectors = []
+
+        for i, word in tqdm(enumerate(src_vocab.itos), desc="adding src vecs"):
+            vectors.append(src_ft.get_word_vector(word))
+        for i, word in tqdm(enumerate(trg_vocab.itos), desc="adding trg vecs"):
+            vectors.append(trg_ft.get_word_vector(word))
+        
+        embedding_matrix = np.vstack(vectors)
 
         self.lut= nn.Embedding(len(src_vocab)+len(trg_vocab), self.embedding_dim, 
             padding_idx=trg_vocab.stoi[PAD_TOKEN])
@@ -106,6 +123,6 @@ class PretrainedEmbeddings(nn.Module):
         :param x: index in the vocabulary
         :return: embedded representation for `x`
         """
-        #if self.scale:
-        #    return self.lut(x) * math.sqrt(self.embedding_dim)
+        if self.scale:
+            return self.lut(x) * math.sqrt(self.embedding_dim)
         return self.lut(x)
