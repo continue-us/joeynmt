@@ -79,11 +79,11 @@ class PretrainedEmbeddings(nn.Module):
         # TODO add support for other languages
         fasttext.util.download_model('de', if_exists='ignore')
         src_ft = fasttext.load_model('cc.de.300.bin')
-        trg_ft = fasttext.load_model('cc.en.300.bin')
+        # trg_ft = fasttext.load_model('cc.en.300.bin')
         
         # Create smaller embeddings, to test on reverse
-        #fasttext.util.reduce_model(ft, 30)
-        #ft.save_model('cc.en.30.bin')
+        fasttext.util.reduce_model(src_ft, 30)
+        src_ft.save_model('cc.en.30.bin')
 
         self.embedding_dim = src_ft.get_dimension()
         embedding_matrix = np.zeros((len(src_vocab)+len(trg_vocab), self.embedding_dim))
