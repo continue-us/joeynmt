@@ -103,7 +103,8 @@ def recurrent_greedy(
 # pylint: disable=unused-argument
 def transformer_greedy(
         src_mask: Tensor, max_output_length: int, model: Model,
-        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, None):
+        encoder_output: Tensor, encoder_hidden: Tensor,
+        ) -> (np.array, None):
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.

@@ -17,7 +17,7 @@ import numpy as np
 
 import torch
 from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
 
@@ -28,7 +28,7 @@ from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     make_logger, set_seed, symlink_update, ConfigurationError
 from joeynmt.model import Model, _DataParallel
 from joeynmt.prediction import validate_on_data
-from joeynmt.loss import XentLoss
+from joeynmt.loss import XentLoss, vMF
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
@@ -68,8 +68,8 @@ class TrainManager:
 
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
-        self.tb_writer = SummaryWriter(
-            log_dir=self.model_dir + "/tensorboard/")
+        # self.tb_writer = SummaryWriter(
+        #     log_dir=self.model_dir + "/tensorboard/")
 
         # model
         self.model = model
@@ -77,8 +77,12 @@ class TrainManager:
 
         # objective
         self.label_smoothing = train_config.get("label_smoothing", 0.0)
-        self.model.loss_function = XentLoss(pad_index=self.model.pad_index,
-                                            smoothing=self.label_smoothing)
+        # self.model.loss_function = XentLoss(pad_index=self.model.pad_index,
+        #                                     smoothing=self.label_smoothing)
+        self.model.loss_function = vMF(
+            pad_index=self.model.pad_index,
+            embed_dim=self.model.trg_embed.embedding_dim
+        )
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens", "none"]:
             raise ConfigurationError("Invalid normalization option."
@@ -151,6 +155,7 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        # input(f"batch_size: {self.batch_size}")
         # per-device batch_size = self.batch_size // self.n_gpu
         self.batch_type = train_config.get("batch_type", "sentence")
         self.eval_batch_size = train_config.get("eval_batch_size",
@@ -178,7 +183,7 @@ class TrainManager:
                 raise ImportError(
                     "Please install apex from "
                     "https://www.github.com/nvidia/apex "
-                    "to use fp16 training.") from no_apex
+                    "to use fp16 training.") # from no_apex
             self.model, self.optimizer = amp.initialize(
                 self.model, self.optimizer, opt_level='O1')
             # opt level: one of {"O0", "O1", "O2", "O3"}
@@ -375,9 +380,19 @@ class TrainManager:
             batch_loss = 0
 
             for i, batch in enumerate(iter(train_iter)):
+                # try:
+                #     input(self.model.trg_vocab.arrays_to_sentences(
+                #         batch.trg[0].cpu().numpy()
+                #     ))
+                # except TypeError as RE:
+                #     print(RE)
+                #     print([(t.shape, t) for t in batch.trg])
+                #     exit()
+
                 # create a Batch object from torchtext batch
                 batch = self.batch_class(batch, self.model.pad_index,
-                                         use_cuda=self.use_cuda)
+                    use_cuda=self.use_cuda)
+                # input(f"newly created batch: {batch.trg.shape}")
 
                 # get batch loss
                 batch_loss += self._train_step(batch)
@@ -408,8 +423,8 @@ class TrainManager:
 
                     # log learning progress
                     if self.stats.steps % self.logging_freq == 0:
-                        self.tb_writer.add_scalar("train/train_batch_loss",
-                                                  batch_loss, self.stats.steps)
+                        # self.tb_writer.add_scalar("train/train_batch_loss",
+                        #                           batch_loss, self.stats.steps)
                         elapsed = time.time() - start - total_valid_duration
                         elapsed_tokens = self.stats.total_tokens - start_tokens
                         logger.info(
@@ -447,7 +462,7 @@ class TrainManager:
                     self.stats.best_ckpt_iter, self.stats.best_ckpt_score,
                     self.early_stopping_metric)
 
-        self.tb_writer.close()  # close Tensorboard writer
+        # self.tb_writer.close()  # close Tensorboard writer
 
     def _train_step(self, batch: Batch) -> Tensor:
         """
@@ -521,12 +536,12 @@ class TrainManager:
                 n_gpu=self.n_gpu
             )
 
-        self.tb_writer.add_scalar(
-            "valid/valid_loss", valid_loss, self.stats.steps)
-        self.tb_writer.add_scalar(
-            "valid/valid_score", valid_score, self.stats.steps)
-        self.tb_writer.add_scalar(
-            "valid/valid_ppl", valid_ppl, self.stats.steps)
+        # self.tb_writer.add_scalar(
+        #     "valid/valid_loss", valid_loss, self.stats.steps)
+        # self.tb_writer.add_scalar(
+        #     "valid/valid_score", valid_score, self.stats.steps)
+        # self.tb_writer.add_scalar(
+        #     "valid/valid_ppl", valid_ppl, self.stats.steps)
 
         if self.early_stopping_metric == "loss":
             ckpt_score = valid_loss
@@ -584,7 +599,7 @@ class TrainManager:
                 indices=self.log_valid_sents,
                 output_prefix="{}/att.{}".format(
                     self.model_dir, self.stats.steps),
-                tb_writer=self.tb_writer, steps=self.stats.steps)
+                steps=self.stats.steps)
 
         return valid_duration
 

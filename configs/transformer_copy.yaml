@@ -3,9 +3,9 @@ name: "copy_experiment"
 data:
     src: "src"
     trg: "trg"
-    train: "test/data/copy/train"
-    dev: "test/data/copy/dev"
-    test: "test/data/copy/test"
+    train: "train"
+    dev: "dev"
+    test: "test"
     level: "word"
     lowercase: False
     max_sent_length: 21
@@ -51,24 +51,24 @@ model:
     encoder:
         type: "transformer"
         num_layers: 2
-        num_heads: 4
+        num_heads: 3
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 300
             scale: True
             dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 64
-        ff_size: 256
+        hidden_size: 300
+        ff_size: 120
         dropout: 0.1
     decoder:
         type: "transformer"
         num_layers: 2
-        num_heads: 4
+        num_heads: 3
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 300
             scale: True
             dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 64
-        ff_size: 256
+        hidden_size: 300
+        ff_size: 120
         dropout: 0.1

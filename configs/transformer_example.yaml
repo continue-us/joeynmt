@@ -1,47 +1,54 @@
-name: "reverse_experiment"
+name: "transformer-example"
 
 data:
-    src: "src"
-    trg: "trg"
-    train: "train"
-    dev: "dev"
-    test: "test"
+    src: "d"
+    trg: "e"
+    train: "test/data/example/train"
+    dev: "test/data/example/valid"
+    test: "test/data/example/test"
     level: "word"
-    lowercase: False
-    max_sent_length: 25
-    voc_min_freq: 0
-    voc_limit: 100
-    #src_vocab: "my_model/src_vocab.txt"
-    #trg_vocab: "my_model/trg_vocab.txt"
+    lowercase: True
+    max_sent_length: 62
+    src_vocab: "test/data/example/vocab.full"
+    trg_vocab: "test/data/example/vocab.full"
 
 testing:
     beam_size: 5
     alpha: 1.0
+    postproccess: False
+    # bpe_type: "sentencepiece"
+    # sacrebleu:
+    #     remove_whitespace: True
+    #     tokenize: "13a"
 
 training:
     random_seed: 42
     optimizer: "adam"
+    normalization: "tokens"
     adam_betas: [0.9, 0.999]
     scheduling: "plateau"
+    patience: 5
+    decrease_factor: 0.7
     loss: "crossentropy"
-    learning_rate: 0.0002
+    learning_rate: 0.0003
     learning_rate_min: 0.00000001
-    label_smoothing: 0.1
     weight_decay: 0.0
-    batch_size: 250
+    label_smoothing: 0.1
+    batch_size: 10 # 4096 per device
     batch_type: "token"
-    epochs: 30
+    early_stopping_metric: "eval_metric"
+    epochs: 100
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "models/transformer_reverse"
+    model_dir: "models/continuous_transformer"
     overwrite: True
-    shuffle: True
-    use_cuda: False
-    max_output_length: 30
-    print_valid_sents: [0, 3, 6, 9]
-    keep_last_ckpts: 2
-
+    shuffle: False
+    use_cuda: True
+    fp16: False
+    max_output_length: 100
+    print_valid_sents: [0, 1, 2, 3, 4]
+    keep_last_ckpts: 5
 
 model:
     initializer: "xavier"

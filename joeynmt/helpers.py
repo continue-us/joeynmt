@@ -16,7 +16,7 @@ import pkg_resources
 
 import torch
 from torch import nn, Tensor
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
 import yaml
@@ -55,8 +55,8 @@ def make_logger(log_dir: str = None, mode: str = "train") -> str:
     :return: joeynmt version number
     """
     logger = logging.getLogger("") # root logger
-    version = pkg_resources.require("joeynmt")[0].version
-
+    #version = pkg_resources.require("joeynmt")[0].version
+    version =1
     # add handlers only once.
     if len(logger.handlers) == 0:
         logger.setLevel(level=logging.DEBUG)
@@ -198,7 +198,7 @@ def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
 def store_attention_plots(attentions: np.array, targets: List[List[str]],
                           sources: List[List[str]],
                           output_prefix: str, indices: List[int],
-                          tb_writer: Optional[SummaryWriter] = None,
+                          tb_writer = None,
                           steps: int = 0) -> None:
     """
     Saves attention plots.

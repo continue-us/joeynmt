@@ -3,23 +3,18 @@ name: "iwslt14-deen-bpe-transformer"
 data:
     src: "de"
     trg: "en"
-    train: "test/data/iwslt14_sp/train.sp.32000"
-    dev: "test/data/iwslt14_sp/valid.sp.32000"
-    test: "test/data/iwslt14_sp/test.sp.32000"
+    train: "test/data/iwslt14/train.bpe.32000"
+    dev: "test/data/iwslt14/valid.bpe.32000"
+    test: "test/data/iwslt14/test.bpe.32000"
     level: "bpe"
     lowercase: True
     max_sent_length: 62
-    src_vocab: "test/data/iwslt14_sp/vocab.txt"
-    trg_vocab: "test/data/iwslt14_sp/vocab.txt"
+    src_vocab: "test/data/iwslt14/vocab.txt"
+    trg_vocab: "test/data/iwslt14/vocab.txt"
 
 testing:
-    beam_size: 5
+    beam_size: 1
     alpha: 1.0
-    postproccess: True
-    bpe_type: "sentencepiece"
-    sacrebleu:
-        remove_whitespace: True
-        tokenize: "13a"
 
 training:
     random_seed: 42
@@ -34,18 +29,17 @@ training:
     learning_rate_min: 0.00000001
     weight_decay: 0.0
     label_smoothing: 0.1
-    batch_size: 8192 # 4096 per device
-    batch_type: "token"
+    batch_size: 64
+    batch_type: "tokens"
     early_stopping_metric: "eval_metric"
     epochs: 100
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "models/iwslt14_deen_sp_transformer_2gpu_fp16"
+    model_dir: "models/iwslt14_deen_bpe_transformer"
     overwrite: True
     shuffle: True
     use_cuda: True
-    fp16: True
     max_output_length: 100
     print_valid_sents: [0, 1, 2, 3, 4]
     keep_last_ckpts: 5
@@ -60,25 +54,25 @@ model:
     tied_softmax: True
     encoder:
         type: "transformer"
-        num_layers: 6
-        num_heads: 4
+        num_layers: 4
+        num_heads: 6
         embeddings:
-            embedding_dim: 30
-            scale: True
+            embedding_dim: 300
+            scale: False
             dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 30
-        ff_size: 1024
+        hidden_size: 300
+        ff_size: 1200
         dropout: 0.3
     decoder:
         type: "transformer"
-        num_layers: 6
-        num_heads: 4
+        num_layers: 2
+        num_heads: 6
         embeddings:
-            embedding_dim: 30
-            scale: True
+            embedding_dim: 300
+            scale: False
             dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 30
-        ff_size: 1024
+        hidden_size: 300
+        ff_size:  1200
         dropout: 0.3

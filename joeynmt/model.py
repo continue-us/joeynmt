@@ -9,7 +9,7 @@ from torch import Tensor
 import torch.nn.functional as F
 
 from joeynmt.initialization import initialize_model
-from joeynmt.embeddings import Embeddings
+from joeynmt.embeddings import Embeddings, PretrainedEmbeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
@@ -26,7 +26,7 @@ class Model(nn.Module):
                  encoder: Encoder,
                  decoder: Decoder,
                  src_embed: Embeddings,
-                 trg_embed: Embeddings,
+                 trg_embed: Embeddings, # TODO ignored -> remove
                  src_vocab: Vocabulary,
                  trg_vocab: Vocabulary) -> None:
         """
@@ -41,16 +41,20 @@ class Model(nn.Module):
         """
         super().__init__()
 
-        self.src_embed = src_embed
-        self.trg_embed = trg_embed
-        self.encoder = encoder
-        self.decoder = decoder
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
+
+        self.src_embed = src_embed 
+        self.trg_embed = self.src_embed
+        self.encoder = encoder
+        self.decoder = decoder
         self.bos_index = self.trg_vocab.stoi[BOS_TOKEN]
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
         self._loss_function = None # set by the TrainManager
+
+        # TODO if continue-us
+        #self.trg_embed = PretrainedEmbeddings(self.trg_vocab)
 
     @property
     def loss_function(self):
@@ -76,16 +80,26 @@ class Model(nn.Module):
                              "{`loss`, `encode`, `decode`}.")
 
         return_tuple = (None, None, None, None)
-        if return_type == "loss":
+        if "loss" in return_type:
             assert self.loss_function is not None
 
-            out, _, _, _ = self._encode_decode(**kwargs)
+            if True: # self.loss_function==vMF:
+                # print('USING vMF')
 
-            # compute log probs
-            log_probs = F.log_softmax(out, dim=-1)
+                preds, _, _, _ = self._encode_decode(**kwargs)
+                # input("preds.shape:{}".format(preds.shape))
 
-            # compute batch loss
-            batch_loss = self.loss_function(log_probs, kwargs["trg"])
+                # compute batch loss
+                batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed)
+                #print("LOSS ", batch_loss)
+            else:
+                out, _, _, _ = self._encode_decode(**kwargs)
+
+                # compute log probs
+                log_probs = F.log_softmax(out, dim=-1)
+
+                # compute batch loss
+                batch_loss = self.loss_function(log_probs, kwargs["trg"])
 
             # return batch loss
             #     = sum over all elements in batch that are not pad
@@ -212,7 +226,9 @@ def build_model(cfg: dict = None,
     src_padding_idx = src_vocab.stoi[PAD_TOKEN]
     trg_padding_idx = trg_vocab.stoi[PAD_TOKEN]
 
-    src_embed = Embeddings(
+    # TODO if continue-us 
+    src_embed = PretrainedEmbeddings(
+        src_vocab, trg_vocab,
         **cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
         padding_idx=src_padding_idx)
 
@@ -226,10 +242,12 @@ def build_model(cfg: dict = None,
             raise ConfigurationError(
                 "Embedding cannot be tied since vocabularies differ.")
     else:
-        trg_embed = Embeddings(
-            **cfg["decoder"]["embeddings"], vocab_size=len(trg_vocab),
-            padding_idx=trg_padding_idx)
+        src_embed = PretrainedEmbeddings(
+        src_vocab, trg_vocab,
+        **cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
+        padding_idx=src_padding_idx)
 
+    
     # build encoder
     enc_dropout = cfg["encoder"].get("dropout", 0.)
     enc_emb_dropout = cfg["encoder"]["embeddings"].get("dropout", enc_dropout)
@@ -263,6 +281,7 @@ def build_model(cfg: dict = None,
                   src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # tie softmax layer with trg embeddings
+    """
     if cfg.get("tied_softmax", False):
         if trg_embed.lut.weight.shape == \
                 model.decoder.output_layer.weight.shape:
@@ -272,8 +291,9 @@ def build_model(cfg: dict = None,
             raise ConfigurationError(
                 "For tied_softmax, the decoder embedding_dim and decoder "
                 "hidden_size must be the same."
-                "The decoder must be a Transformer.")
-
+                "The decoder must be a Transformer."
+                f"shapes: output_layer.weight: {model.decoder.output_layer.weight.shape}; target_embed.lut.weight:{trg_embed.lut.weight.shape}")
+    """
     # custom initialization of model parameters
     initialize_model(model, cfg, src_padding_idx, trg_padding_idx)
 

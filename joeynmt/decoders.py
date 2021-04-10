@@ -101,8 +101,8 @@ class RecurrentDecoder(Decoder):
         self.att_vector_layer = nn.Linear(
             hidden_size + encoder.output_size, hidden_size, bias=True)
 
-        self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
-        self._output_size = vocab_size
+        self.output_layer = nn.Linear(hidden_size, emb_size, bias=False)
+        self._output_size = emb_size
 
         if attention == "bahdanau":
             self.attention = BahdanauAttention(hidden_size=hidden_size,
@@ -461,7 +461,6 @@ class TransformerDecoder(Decoder):
     A transformer decoder with N masked layers.
     Decoder layers are masked so that an attention head cannot see the future.
     """
-
     def __init__(self,
                  num_layers: int = 4,
                  num_heads: int = 8,
@@ -499,7 +498,9 @@ class TransformerDecoder(Decoder):
         self.layer_norm = nn.LayerNorm(hidden_size, eps=1e-6)
 
         self.emb_dropout = nn.Dropout(p=emb_dropout)
-        self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
+
+        self.output_layer = nn.Linear(hidden_size, hidden_size, bias=False)
+        #self.output_layer = self.layers[-1].feed_forward.pwff_layer[-2]
 
         if freeze:
             freeze_params(self)
@@ -529,6 +530,7 @@ class TransformerDecoder(Decoder):
         """
         assert trg_mask is not None, "trg_mask required for Transformer"
 
+
         x = self.pe(trg_embed)  # add position encoding to word embedding
         x = self.emb_dropout(x)
 
@@ -540,8 +542,12 @@ class TransformerDecoder(Decoder):
                       src_mask=src_mask, trg_mask=trg_mask)
 
         x = self.layer_norm(x)
-        output = self.output_layer(x)
 
+        # input(('OUTPUT DIM BEFORE', x.shape))
+        output = self.output_layer(x)
+        # input(('OUTPUT DIM AFTER', output.shape))
+
+        # output, hidden, att_scores, att_vectors # <--- last three dont matter for transformer
         return output, x, None, None
 
     def __repr__(self):
