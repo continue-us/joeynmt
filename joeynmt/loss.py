@@ -7,7 +7,7 @@ import torch
 from torch import nn, Tensor
 from torch.autograd import Variable
 
-from joeynmt.ive import Logcmk, factory_approx_logcmk
+from joeynmt.ive import LogCmk, LogCmkApprox
 
 class vMF(nn.Module):
     """ Von Mises Fisher Loss
@@ -18,67 +18,38 @@ class vMF(nn.Module):
         self.m = embed_dim
         self.pad_index = pad_index
         self.warmup = True
-        self.logcmk_fun = factory_approx_logcmk(self.m)
+        self.logcmk_fun = LogCmkApprox.apply
+        # self.logcmk_fun = LogCmk.apply
 
     def increase_precision(self):
-        self.logcmk_fun = Logcmk.apply
+        self.logcmk_fun = LogCmk.apply
 
     def forward(self, outputs, targets, target_embeddings):
 
-        loss = []
-        cosine_loss = []
-
-        batch_size = outputs.size(0)
-
         # permute batch and time dimension to iterate over time
-        outputs_timewise = outputs.permute(1,0,2)
         target_vectors = target_embeddings(targets)
-        targets_timewise = target_vectors.permute(1,0,2)
 
-        # input(f"batch dim: {batch_size}; outputs: {outputs.shape}, targets: {targets.shape}")
+        trg_vec_norm = torch.nn.functional.normalize(target_vectors, p=2, dim=-1)
+        out_vec_norm = torch.nn.functional.normalize(outputs, p=2, dim=-1)
 
-        for t, (out_t, trg_t) in enumerate(zip(outputs_timewise, targets_timewise)):
+        # reg2 = out_vec_norm * trg_vec_norm
+        lambda2 = 0.1
+        cos = (out_vec_norm * trg_vec_norm).sum(dim=-1)
 
-            trg_vec_norm_t = torch.nn.functional.normalize(trg_t, p=2, dim=-1)
-            out_vec_norm_t = torch.nn.functional.normalize(out_t, p=2, dim=-1)
+        # reg1 = kappa 
+        lambda1 = 0.02
+        kappa = outputs.norm(p=2, dim=-1)
 
-            # print(nll_loss.shape)
+        # vMF LOSS with both regularisations:
+        # nll_loss = - self.logcmk_fun(kappa) - lambda2 * cos + lambda1 * kappa
+        nll_loss = - lambda2 * cos + lambda1 * kappa
 
-            # print("out_t:",out_t.shape,"trg_t:", trg_t.shape)
+        # discard pad
+        mask = targets.ne(self.pad_index)
 
-            # reg2 = l2 *(out_t @ trg_t.T)
-            lambda2 = 0.1
-            # reg2 = out_vec_norm_t * trg_vec_norm_t
-            cos = out_vec_norm_t @ trg_vec_norm_t.T
+        loss = nll_loss.masked_select(mask).sum()
 
-            # reg1 = l1 * kappa 
-            lambda1 = 0.02
-            kappa = out_t.norm(p=2, dim=-1)
-
-            # vMF LOSS with both regularisations:
-            # nll_loss = -logcmkapprox(self.m, kappa) + lambda2 * reg2 + lambda1 * kappa
-
-            # nll_loss = - Logcmk.apply(self.m,kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*trg_vec_norm_t).sum(dim=-1))
-            # this runs:
-            # nll_loss = - Logcmk.apply(kappa) + kappa * (lambda2-lambda1*(out_vec_norm_t*trg_vec_norm_t).sum(dim=-1))
-            # print("shapes:", Logcmk.apply(kappa).shape, out_vec_norm_t.shape, trg_vec_norm_t.shape,reg2.shape,kappa.shape)
-            # input()
-            nll_loss = - self.logcmk_fun(kappa) - lambda2 * cos + lambda1 * kappa
-            # nll_loss = - Logcmk.apply(kappa) + kappa*(lambda2-lambda1*(out_vec_norm_t*trg_vec_norm_t).sum(dim=-1))
-            # nll_loss = logcmkapprox(self.m, kappa) + torch.log(1+kappa)*(0.2-(out_vec_norm_t*normed_trg).sum(dim=-1))
-
-            # print("full nll:",nll_loss.shape)
-            # print("reg1:",kappa.shape, "reg2", reg2.shape)
-            # input()
-            mask = targets[:,t].ne(self.pad_index)
-            # input(f"mask: {mask.shape}, nll_loss: {nll_loss.shape}, batch_size: {batch_size}")
-
-            loss_t = nll_loss.masked_select(mask).sum()
-
-            loss.append(loss_t)
-
-        full_loss = torch.stack(loss).sum()
-        return full_loss
+        return loss
 
 
 class XentLoss(nn.Module):

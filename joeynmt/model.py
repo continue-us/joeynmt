@@ -16,6 +16,9 @@ from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.helpers import ConfigurationError
 
+# import faiss
+from scipy.spatial import cKDTree
+
 
 class Model(nn.Module):
     """
@@ -55,6 +58,14 @@ class Model(nn.Module):
 
         # TODO if continue-us
         #self.trg_embed = PretrainedEmbeddings(self.trg_vocab)
+
+        # for fast nearest neighbor decoding
+        print(f"Building cheeky k dimensional Tree for nearest neighbor search later ...")
+        self.NNtree = cKDTree(trg_embed.lut.weight.data.detach().cpu().numpy())
+        print(f"Finished building kdtree.")
+
+        # self.index = faiss.IndexFlatL2(model.trg_embed.embedding_dim)
+        # self.index.add(trg_embed.lut.weight.data.detach().cpu().numpy())
 
     @property
     def loss_function(self):

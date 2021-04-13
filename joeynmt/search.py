@@ -8,12 +8,16 @@ from joeynmt.decoders import TransformerDecoder
 from joeynmt.model import Model
 from joeynmt.batch import Batch
 from joeynmt.helpers import tile
+from joeynmt.embeddings import Embeddings
+
+# import faiss
+
 
 __all__ = ["greedy", "transformer_greedy", "beam_search", "run_batch"]
 
 
 def greedy(src_mask: Tensor, max_output_length: int, model: Model,
-           encoder_output: Tensor, encoder_hidden: Tensor)\
+        encoder_output: Tensor, encoder_hidden: Tensor)\
         -> (np.array, np.array):
     """
     Greedy decoding. Select the token word highest probability at each time
@@ -36,12 +40,13 @@ def greedy(src_mask: Tensor, max_output_length: int, model: Model,
         greedy_fun = recurrent_greedy
 
     return greedy_fun(
-        src_mask, max_output_length, model, encoder_output, encoder_hidden)
+        src_mask, max_output_length, model, encoder_output, encoder_hidden,
+        trg_embed=model.trg_embed)
 
 
 def recurrent_greedy(
         src_mask: Tensor, max_output_length: int, model: Model,
-        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
+        encoder_output: Tensor, encoder_hidden: Tensor, trg_embed: Embeddings) -> (np.array, np.array):
     """
     Greedy decoding: in each step, choose the word that gets highest score.
     Version for recurrent decoder.
@@ -81,10 +86,32 @@ def recurrent_greedy(
                 att_vector=prev_att_vector)
             # logits: batch x time=1 x vocab (logits)
 
+        # for noobs:
         # greedy decoding: choose arg max over vocabulary in each step
-        next_word = torch.argmax(logits, dim=-1)  # batch x time=1
+        # next_word = torch.argmax(logits, dim=-1)  # batch x time=1
+        # output.append(next_word.squeeze(1).detach().cpu().numpy())
+        # prev_y = next_word
+        # attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
+        # batch, max_src_length
+
+        # for chads: 
+        # fast greedy nearest neighbor decoding:
+        predicted_emb = logits # B x DIM
+
+        # method 1: brute force
+        # next_word = torch.argmin(
+        #     ((predicted_emb - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
+        # ) # LUT is VOC x DIM
+
+        # method 2: faiss; would be best if dependencies were installed on cluster
+        # D, I = model.index.search(predicted_emb.squeeze(1).detach().cpu().numpy(), 1)
+
+        # method 3: kdTree
+        _, I = model.NNtree.query(predicted_emb.squeeze(1).detach().cpu().numpy())
+        prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
+
+        # result is B x 1
         output.append(next_word.squeeze(1).detach().cpu().numpy())
-        prev_y = next_word
         attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
         # batch, max_src_length
 
@@ -103,7 +130,7 @@ def recurrent_greedy(
 # pylint: disable=unused-argument
 def transformer_greedy(
         src_mask: Tensor, max_output_length: int, model: Model,
-        encoder_output: Tensor, encoder_hidden: Tensor,
+        encoder_output: Tensor, encoder_hidden: Tensor, trg_embed: Embeddings
         ) -> (np.array, None):
     """
     Special greedy function for transformer, since it works differently.
