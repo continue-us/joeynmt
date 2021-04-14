@@ -1,4 +1,4 @@
-# coding: utf-8
+# coding: utf-7
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -9,6 +9,7 @@ from joeynmt.model import Model
 from joeynmt.batch import Batch
 from joeynmt.helpers import tile
 from joeynmt.embeddings import Embeddings
+from joennmt.loss import vMF
 
 # import faiss
 
@@ -107,8 +108,17 @@ def recurrent_greedy(
         # D, I = model.index.search(predicted_emb.squeeze(1).detach().cpu().numpy(), 1)
 
         # method 3: kdTree
-        _, I = model.NNtree.query(predicted_emb.squeeze(1).detach().cpu().numpy())
-        prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
+        # start = time.time()
+        # _, I = model.NNtree.query(predicted_emb.squeeze(1).detach().cpu().numpy())
+        # print(f"Took {time.time()-start} seconds to query the tree for {I.shape[0]} words")
+        # prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
+
+        # method 4: (section 4.3) "highest vMF density"
+        losses = vMF(
+            predicted_emb,
+            trg_embed.lut.weight.data.unsqueeze(0)
+        )
+        prev_y = next_word = torch.argmin(losses, dim=-1)
 
         # result is B x 1
         output.append(next_word.squeeze(1).detach().cpu().numpy())

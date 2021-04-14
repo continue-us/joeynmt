@@ -41,8 +41,8 @@ class vMF(nn.Module):
         kappa = outputs.norm(p=2, dim=-1)
 
         # vMF LOSS with both regularisations:
-        # nll_loss = - self.logcmk_fun(kappa) - lambda2 * cos + lambda1 * kappa
-        nll_loss = - lambda2 * cos + lambda1 * kappa
+        nll_loss = - self.logcmk_fun(kappa) - lambda2 * cos + lambda1 * kappa
+        # nll_loss = - lambda2 * cos + lambda1 * kappa
 
         # discard pad
         mask = targets.ne(self.pad_index)

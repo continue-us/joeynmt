@@ -23,7 +23,7 @@ testing:
 training:
     optimizer: "adam"
     normalization: "tokens"
-    learning_rate: 0.0002
+    learning_rate: 0.0005
     batch_size: 80
     scheduling: "plateau"
     patience: 8
@@ -32,8 +32,8 @@ training:
     decrease_factor: 0.7
     early_stopping_metric: "loss"
     epochs: 100
-    validation_freq: 2000
-    logging_freq: 500
+    validation_freq: 1500
+    logging_freq: 80
     eval_metric: "bleu"
     model_dir: "models/iwslt14_deen_bpe"
     overwrite: True
