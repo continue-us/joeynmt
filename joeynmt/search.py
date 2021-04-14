@@ -184,9 +184,16 @@ def transformer_greedy(
                 trg_mask=trg_mask
             )
 
-            logits = logits[:, -1]
-            _, next_word = torch.max(logits, dim=1)
-            next_word = next_word.data
+            # logits = logits[:, -1]
+            # _, next_word = torch.max(logits, dim=1)
+            predicted_emb = logits[:,-1].unsqueeze(1)
+
+            losses = vMF(
+                predicted_emb,
+                trg_embed.lut.weight.data.unsqueeze(0)
+            )
+            next_word = torch.argmin(losses, dim=-1).data
+
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
 
         # check if previous symbol was <eos>

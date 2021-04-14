@@ -24,7 +24,7 @@ training:
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.7
-    loss: "crossentropy"
+    loss: "crossentropy" # jk lol
     learning_rate: 0.0003
     learning_rate_min: 0.00000001
     weight_decay: 0.0
@@ -54,7 +54,7 @@ model:
     tied_softmax: True
     encoder:
         type: "transformer"
-        num_layers: 4
+        num_layers: 3
         num_heads: 6
         embeddings:
             embedding_dim: 300
