@@ -122,9 +122,11 @@ class PretrainedEmbeddings(nn.Module):
 
             with open(np_embedding, "wb") as np_file:
                 pickle.dump(embedding_matrix, np_file)
+
             exit(f"saved joint fasttext embedding matrix as np matrix at {np_embedding}")
 
         else:
+
             print("Loading saved embedding ...")
             with open(np_embedding, "rb") as np_file:
                 embedding_matrix = pickle.load(np_file)
@@ -135,6 +137,8 @@ class PretrainedEmbeddings(nn.Module):
             padding_idx=trg_vocab.stoi[PAD_TOKEN])
 
         self.lut.weight = nn.Parameter(torch.from_numpy(embedding_matrix).float())
+
+        self.trg_voc_start_idx = len(src_vocab.itos) + 1 # change this to index vector if order mixed
 
         # always freeze pretrained embeddings
         freeze_params(self)

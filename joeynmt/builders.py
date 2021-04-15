@@ -57,6 +57,7 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
         - "adam": see `torch.optim.adam`
         - "adagrad": see `torch.optim.adagrad`
         - "adadelta": see `torch.optim.adadelta`
+        - "adamw": see `torch.optim.adamw`
         - "rmsprop": see `torch.optim.RMSprop`
 
     The initial learning rate is set according to "learning_rate" in the config.
@@ -81,6 +82,12 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
                                      weight_decay=weight_decay,
                                      lr=learning_rate,
                                      betas=adam_betas)
+    elif optimizer_name == "adamw":
+        adam_betas = config.get("adam_betas", (0.9, 0.999))
+        optimizer = torch.optim.AdamW(parameters,
+                                    weight_decay=weight_decay,
+                                    lr=learning_rate,
+                                    betas=adam_betas)
     elif optimizer_name == "adagrad":
         optimizer = torch.optim.Adagrad(parameters,
                                         weight_decay=weight_decay,
@@ -99,7 +106,7 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
                                     weight_decay=weight_decay,
                                     lr=learning_rate)
     else:
-        raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
+        raise ConfigurationError(f"Invalid optimizer {optimizer_name}. Valid options: 'adam', "
                                  "'adagrad', 'adadelta', 'rmsprop', 'sgd'.")
     return optimizer
 

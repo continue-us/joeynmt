@@ -7,6 +7,7 @@ from typing import Callable
 import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
+import torch
 
 from joeynmt.initialization import initialize_model
 from joeynmt.embeddings import Embeddings, PretrainedEmbeddings
@@ -97,11 +98,10 @@ class Model(nn.Module):
                 # print('USING vMF')
 
                 preds, _, _, _ = self._encode_decode(**kwargs)
-                # input("preds.shape:{}".format(preds.shape))
 
                 # compute batch loss
                 batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed)
-                #print("LOSS ", batch_loss)
+
             else:
                 out, _, _, _ = self._encode_decode(**kwargs)
 

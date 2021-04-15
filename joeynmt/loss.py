@@ -7,7 +7,7 @@ import torch
 from torch import nn, Tensor
 from torch.autograd import Variable
 
-from joeynmt.ive import LogCmk, LogCmkApprox
+from joeynmt.ive import LogCmk, LogCmkApprox, logcmkapprox_autobackward
 
 class vMF(nn.Module):
     """ Von Mises Fisher Loss
@@ -18,36 +18,65 @@ class vMF(nn.Module):
         self.m = embed_dim
         self.pad_index = pad_index
         self.warmup = True
-        self.logcmk_fun = LogCmkApprox.apply
+
         # self.logcmk_fun = LogCmk.apply
+        self.logcmk_fun = LogCmkApprox.apply
+        # self.logcmk_fun = logcmkapprox_autobackward
 
     def increase_precision(self):
         self.logcmk_fun = LogCmk.apply
 
-    def forward(self, outputs, targets, target_embeddings):
+    def forward(self, outputs, targets, target_embeddings, do_nearest_neighbor=False):
+        # use do_nearest_neighbor == True (and dont provide targets)
+        # to use target vocab as targets
 
-        # permute batch and time dimension to iterate over time
-        target_vectors = target_embeddings(targets)
+        if not do_nearest_neighbor:
+            target_vectors = target_embeddings(targets)
+            assert outputs.shape == target_vectors.shape, (outputs.shape, target_vectors.shape)
 
-        trg_vec_norm = torch.nn.functional.normalize(target_vectors, p=2, dim=-1)
-        out_vec_norm = torch.nn.functional.normalize(outputs, p=2, dim=-1)
+        else:
+            vocab = target_embeddings.lut.weight.data
+            targets = torch.arange(vocab.shape[0]).unsqueeze(0).repeat(outputs.shape[0],1)
+            target_vectors = vocab.unsqueeze(0)
+
+            assert target_vectors.shape[-1] == outputs.shape[-1]
+
+        trg_vec_normalized = torch.nn.functional.normalize(target_vectors, p=2, dim=-1)
+        out_vec_normalized = torch.nn.functional.normalize(outputs, p=2, dim=-1)
 
         # reg2 = out_vec_norm * trg_vec_norm
         lambda2 = 0.1
-        cos = (out_vec_norm * trg_vec_norm).sum(dim=-1)
+        cosines = (out_vec_normalized * trg_vec_normalized).sum(dim=-1)
 
         # reg1 = kappa 
         lambda1 = 0.02
-        kappa = outputs.norm(p=2, dim=-1)
+        kappa = outputs.norm(p=2, dim=-1) # ||e|| (l2 norm of predictions)
 
-        # vMF LOSS with both regularisations:
-        nll_loss = - self.logcmk_fun(kappa) - lambda2 * cos + lambda1 * kappa
-        # nll_loss = - lambda2 * cos + lambda1 * kappa
+        # vMF LOSS with 
 
-        # discard pad
-        mask = targets.ne(self.pad_index)
+        # both regularisations:
+        nll_loss = - self.logcmk_fun(kappa) - lambda2 * cosines + lambda1 * kappa
 
-        loss = nll_loss.masked_select(mask).sum()
+        # regularisation 1:
+        # nll_loss = - self.logcmk_fun(kappa) + lambda1 * kappa
+
+        # no regularization:
+        # nll_loss = - self.logcmk_fun(kappa)        
+
+        if not do_nearest_neighbor:
+
+            # discard padded positions
+            mask = targets.ne(self.pad_index)
+            # loss = nll_loss.masked_select(mask)
+
+            loss = nll_loss[mask]
+
+            # input(f"shapes: loss: {loss.shape}, mask: {mask.shape}, nll_loss: {nll_loss.shape}, tgt: {targets.shape}")
+
+            loss =  loss.sum()
+        else:
+
+            loss = nll_loss
 
         return loss
 

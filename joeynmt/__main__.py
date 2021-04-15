@@ -1,5 +1,11 @@
 import argparse
 
+# HACK because i dont know how to properly import python modules:
+import sys
+sys.path.append("..")
+import os
+os.chdir("..")
+
 from joeynmt.training import train
 from joeynmt.prediction import test
 from joeynmt.prediction import translate

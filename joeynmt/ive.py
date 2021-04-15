@@ -43,8 +43,10 @@ class LogCmk(torch.autograd.Function):
 
         # see Appendix 8.2 (https://arxiv.org/pdf/1812.04616.pdf)
         x = -((scipy.special.ive(m/2, k))/(scipy.special.ive(m/2-1,k)))
+
         if torch.cuda.is_available():
             x = x.cuda()
+
         x = x.float()
 
         return grad_output*Variable(x)
@@ -68,7 +70,7 @@ class LogCmkApprox(torch.autograd.Function):
         v = m/2-1
 
         blub = torch.sqrt((v+1)**2+k**2)
-        return - (blub - (v-1)*torch.log(v-1 + blub))
+        return blub - (v-1)*torch.log(v-1 + blub)
 
 
     @staticmethod
@@ -87,4 +89,9 @@ class LogCmkApprox(torch.autograd.Function):
         blab = - k / (v-1+torch.sqrt((v+1)**2+k**2))
 
         return grad_output*Variable(blab)
+
+def logcmkapprox_autobackward(z):
+  # approximation of LogC(m, k)
+  v = m/2-1
+  return torch.sqrt((v+1)*(v+1)+z*z) - (v-1)*torch.log(v-1 +torch.sqrt((v+1)*(v+1)+z*z))
 

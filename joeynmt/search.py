@@ -1,4 +1,4 @@
-# coding: utf-7
+# coding: utf-8
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -9,7 +9,6 @@ from joeynmt.model import Model
 from joeynmt.batch import Batch
 from joeynmt.helpers import tile
 from joeynmt.embeddings import Embeddings
-from joennmt.loss import vMF
 
 # import faiss
 
@@ -61,22 +60,22 @@ def recurrent_greedy(
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_attention_scores: attention scores (3d array)
     """
-    bos_index = model.bos_index
-    eos_index = model.eos_index
-    batch_size = src_mask.size(0)
-    prev_y = src_mask.new_full(size=[batch_size, 1], fill_value=bos_index,
-                               dtype=torch.long)
-    output = []
-    attention_scores = []
-    hidden = None
-    prev_att_vector = None
-    finished = src_mask.new_zeros((batch_size, 1)).byte()
+    with torch.no_grad():
+        bos_index = model.bos_index
+        eos_index = model.eos_index
+        batch_size = src_mask.size(0)
+        prev_y = src_mask.new_full(size=[batch_size, 1], fill_value=bos_index,
+                                   dtype=torch.long)
+        output = []
+        attention_scores = []
+        hidden = None
+        prev_att_vector = None
+        finished = src_mask.new_zeros((batch_size, 1)).byte()
 
-    # pylint: disable=unused-variable
-    for t in range(max_output_length):
-        # decode one single step
-        with torch.no_grad():
-            logits, hidden, att_probs, prev_att_vector = model(
+        # pylint: disable=unused-variable
+        for t in range(max_output_length):
+            # decode one single step
+            predicted_emb, hidden, att_probs, prev_att_vector = model(
                 return_type="decode",
                 trg_input=prev_y,
                 encoder_output=encoder_output,
@@ -84,56 +83,59 @@ def recurrent_greedy(
                 src_mask=src_mask,
                 unroll_steps=1,
                 decoder_hidden=hidden,
-                att_vector=prev_att_vector)
+                att_vector=prev_att_vector
+            )
             # logits: batch x time=1 x vocab (logits)
 
-        # for noobs:
-        # greedy decoding: choose arg max over vocabulary in each step
-        # next_word = torch.argmax(logits, dim=-1)  # batch x time=1
-        # output.append(next_word.squeeze(1).detach().cpu().numpy())
-        # prev_y = next_word
-        # attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
-        # batch, max_src_length
+            # for noobs:
+            # greedy decoding: choose arg max over vocabulary in each step
+            # next_word = torch.argmax(logits, dim=-1)  # batch x time=1
+            # output.append(next_word.squeeze(1).detach().cpu().numpy())
+            # prev_y = next_word
+            # attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
+            # batch, max_src_length
 
-        # for chads: 
-        # fast greedy nearest neighbor decoding:
-        predicted_emb = logits # B x DIM
+            # for chads: 
+            # fast greedy nearest neighbor decoding:
 
-        # method 1: brute force
-        # next_word = torch.argmin(
-        #     ((predicted_emb - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
-        # ) # LUT is VOC x DIM
+            # method 1: brute force
+            # next_word = torch.argmin(
+            #     ((predicted_emb - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
+            # ) # LUT is VOC x DIM
 
-        # method 2: faiss; would be best if dependencies were installed on cluster
-        # D, I = model.index.search(predicted_emb.squeeze(1).detach().cpu().numpy(), 1)
+            # method 2: faiss; would be best if dependencies were installed on cluster
+            # D, I = model.index.search(predicted_emb.squeeze(1).detach().cpu().numpy(), 1)
 
-        # method 3: kdTree
-        # start = time.time()
-        # _, I = model.NNtree.query(predicted_emb.squeeze(1).detach().cpu().numpy())
-        # print(f"Took {time.time()-start} seconds to query the tree for {I.shape[0]} words")
-        # prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
+            # method 3: kdTree
+            # start = time.time()
+            # _, I = model.NNtree.query(predicted_emb.squeeze(1).detach().cpu().numpy())
+            # print(f"Took {time.time()-start} seconds to query the tree for {I.shape[0]} words")
+            # prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
 
-        # method 4: (section 4.3) "highest vMF density"
-        losses = vMF(
-            predicted_emb,
-            trg_embed.lut.weight.data.unsqueeze(0)
-        )
-        prev_y = next_word = torch.argmin(losses, dim=-1)
+            # method 4: (section 4.3) "highest vMF density"
+            losses = model.loss_function(
+                predicted_emb,
+                None,
+                trg_embed,
+                do_nearest_neighbor=True
+            )
+            prev_y = next_word = torch.argmin(losses, dim=-1).unsqueeze(1)
+            # print(next_word.shape, losses.shape)
 
-        # result is B x 1
-        output.append(next_word.squeeze(1).detach().cpu().numpy())
-        attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
-        # batch, max_src_length
+            # result is B x 1
+            output.append(next_word.squeeze(1).detach().cpu().numpy())
+            attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
+            # batch, max_src_length
 
-        # check if previous symbol was <eos>
-        is_eos = torch.eq(next_word, eos_index)
-        finished += is_eos
-        # stop predicting if <eos> reached for all elements in batch
-        if (finished >= 1).sum() == batch_size:
-            break
+            # check if previous symbol was <eos>
+            is_eos = torch.eq(next_word, eos_index)
+            finished += is_eos
+            # stop predicting if <eos> reached for all elements in batch
+            if (finished >= 1).sum() == batch_size:
+                break
 
-    stacked_output = np.stack(output, axis=1)  # batch, time
-    stacked_attention_scores = np.stack(attention_scores, axis=1)
+        stacked_output = np.stack(output, axis=1)  # batch, time
+        stacked_attention_scores = np.stack(attention_scores, axis=1)
     return stacked_output, stacked_attention_scores
 
 
@@ -155,24 +157,26 @@ def transformer_greedy(
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_attention_scores: attention scores (3d array)
     """
-    bos_index = model.bos_index
-    eos_index = model.eos_index
-    batch_size = src_mask.size(0)
 
-    # start with BOS-symbol for each sentence in the batch
-    ys = encoder_output.new_full([batch_size, 1], bos_index, dtype=torch.long)
+    with torch.no_grad():
 
-    # a subsequent mask is intersected with this in decoder forward pass
-    trg_mask = src_mask.new_ones([1, 1, 1])
-    if isinstance(model, torch.nn.DataParallel):
-        trg_mask = torch.stack(
-            [src_mask.new_ones([1, 1]) for _ in model.device_ids])
+        bos_index = model.bos_index
+        eos_index = model.eos_index
+        batch_size = src_mask.size(0)
 
-    finished = src_mask.new_zeros(batch_size).byte()
+        # start with BOS-symbol for each sentence in the batch
+        ys = encoder_output.new_full([batch_size, 1], bos_index, dtype=torch.long)
 
-    for _ in range(max_output_length):
-        # pylint: disable=unused-variable
-        with torch.no_grad():
+        # a subsequent mask is intersected with this in decoder forward pass
+        trg_mask = src_mask.new_ones([1, 1, 1])
+        if isinstance(model, torch.nn.DataParallel):
+            trg_mask = torch.stack(
+                [src_mask.new_ones([1, 1]) for _ in model.device_ids])
+
+        finished = src_mask.new_zeros(batch_size).byte()
+
+        for _ in range(max_output_length):
+            # pylint: disable=unused-variable
             logits, _, _, _ = model(
                 return_type="decode",
                 trg_input=ys, # model.trg_embed(ys) # embed the previous tokens
@@ -188,22 +192,24 @@ def transformer_greedy(
             # _, next_word = torch.max(logits, dim=1)
             predicted_emb = logits[:,-1].unsqueeze(1)
 
-            losses = vMF(
+            losses = model._loss_function(
                 predicted_emb,
-                trg_embed.lut.weight.data.unsqueeze(0)
+                None,
+                trg_embed,
+                do_nearest_neighbor=True
             )
             next_word = torch.argmin(losses, dim=-1).data
 
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
 
-        # check if previous symbol was <eos>
-        is_eos = torch.eq(next_word, eos_index)
-        finished += is_eos
-        # stop predicting if <eos> reached for all elements in batch
-        if (finished >= 1).sum() == batch_size:
-            break
+            # check if previous symbol was <eos>
+            is_eos = torch.eq(next_word, eos_index)
+            finished += is_eos
+            # stop predicting if <eos> reached for all elements in batch
+            if (finished >= 1).sum() == batch_size:
+                break
 
-    ys = ys[:, 1:]  # remove BOS-symbol
+        ys = ys[:, 1:]  # remove BOS-symbol
     return ys.detach().cpu().numpy(), None
 
 

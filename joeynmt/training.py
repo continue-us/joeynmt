@@ -508,6 +508,31 @@ class TrainManager:
         else:
             norm_batch_loss.backward()
 
+
+        # ---------------------------- DEBUG ----------------------------
+
+        # compute variance of output layer grad
+        if not hasattr(self, "grad_debug_cache"):
+            self.grad_debug_cache = []
+        else:
+            # add flattened grad, e.g. output_layer:
+            self.grad_debug_cache.append(
+                self.model.decoder.output_layer.weight.grad.detach().view(-1).unsqueeze(0)
+            )
+
+            log_freq = 20 # print variance every 20 updates
+            N = len(self.grad_debug_cache)
+            if N % log_freq == 0:
+                stacked_grads = torch.cat(self.grad_debug_cache, dim=0)
+                abs_mean = stacked_grads.abs().mean()
+                mean_var = torch.var(stacked_grads, dim=0).mean()
+                input(f"stats for {N} output grads: abs_mean: {abs_mean}, mean var: {mean_var}")
+
+
+        # ---------------------------- END DEBUG ----------------------------
+
+
+
         # increment token counter
         self.stats.total_tokens += batch.ntokens
 
