@@ -16,6 +16,7 @@ from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.helpers import ConfigurationError
+from joeynmt.loss import vMF
 
 # import faiss
 from scipy.spatial import cKDTree
@@ -94,15 +95,16 @@ class Model(nn.Module):
         if "loss" in return_type:
             assert self.loss_function is not None
 
-            if True: # self.loss_function==vMF:
-                # print('USING vMF')
+            if self.loss_function==vMF:
+                print('USING vMF')
 
                 preds, _, _, _ = self._encode_decode(**kwargs)
 
-                # compute batch loss
+                # # compute batch loss
                 batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed)
 
             else:
+                raise NotImplementedError(f"TODO reimplement normal Xent loss option.. ({self.loss_function}")
                 out, _, _, _ = self._encode_decode(**kwargs)
 
                 # compute log probs

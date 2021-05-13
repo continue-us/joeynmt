@@ -26,20 +26,10 @@ class vMF(nn.Module):
     def increase_precision(self):
         self.logcmk_fun = LogCmk.apply
 
-    def forward(self, outputs, targets, target_embeddings, do_nearest_neighbor=False):
-        # use do_nearest_neighbor == True (and dont provide targets)
-        # to use target vocab as targets
+    def forward(self, outputs, targets, target_embeddings):
 
-        if not do_nearest_neighbor:
-            target_vectors = target_embeddings(targets)
-            assert outputs.shape == target_vectors.shape, (outputs.shape, target_vectors.shape)
-
-        else:
-            vocab = target_embeddings.lut.weight.data
-            targets = torch.arange(vocab.shape[0]).unsqueeze(0).repeat(outputs.shape[0],1)
-            target_vectors = vocab.unsqueeze(0)
-
-            assert target_vectors.shape[-1] == outputs.shape[-1]
+        target_vectors = target_embeddings(targets)
+        assert outputs.shape == target_vectors.shape, (outputs.shape, target_vectors.shape)
 
         trg_vec_normalized = torch.nn.functional.normalize(target_vectors, p=2, dim=-1)
         out_vec_normalized = torch.nn.functional.normalize(outputs, p=2, dim=-1)
@@ -55,7 +45,6 @@ class vMF(nn.Module):
         # vMF LOSS with 
 
         # both regularisations:
-        nll_loss = - self.logcmk_fun(kappa) - lambda2 * cosines + lambda1 * kappa
 
         # regularisation 1:
         # nll_loss = - self.logcmk_fun(kappa) + lambda1 * kappa
@@ -63,22 +52,33 @@ class vMF(nn.Module):
         # no regularization:
         # nll_loss = - self.logcmk_fun(kappa)        
 
-        if not do_nearest_neighbor:
+        nll_loss = - self.logcmk_fun(kappa) - lambda2 * cosines + lambda1 * kappa
 
-            # discard padded positions
-            mask = targets.ne(self.pad_index)
-            # loss = nll_loss.masked_select(mask)
+        # discard padded positions
+        mask = targets.ne(self.pad_index)
+        # loss = nll_loss.masked_select(mask)
 
-            loss = nll_loss[mask]
+        loss = nll_loss[mask]
 
-            # input(f"shapes: loss: {loss.shape}, mask: {mask.shape}, nll_loss: {nll_loss.shape}, tgt: {targets.shape}")
+        # input(f"shapes: loss: {loss.shape}, mask: {mask.shape}, nll_loss: {nll_loss.shape}, tgt: {targets.shape}")
 
-            loss =  loss.sum()
-        else:
+        return loss.sum()
 
-            loss = nll_loss
+    def nearest_neihbor_scores(self, outputs, target_embeddings):
 
-        return loss
+        vocab = target_embeddings.lut.weight.data
+        targets = torch.arange(vocab.shape[0]).unsqueeze(0).repeat(outputs.shape[0],1)
+        target_vectors = vocab.unsqueeze(0)
+        assert target_vectors.shape[-1] == outputs.shape[-1]
+
+        trg_vec_normalized = torch.nn.functional.normalize(target_vectors, p=2, dim=-1)
+        out_vec_normalized = torch.nn.functional.normalize(outputs, p=2, dim=-1)
+
+        kappa = outputs.norm(p=2, dim=-1)
+
+        scores = self.logcmk_fun(kappa)# ||e|| (l2 norm of predictions)
+
+        return scores
 
 
 class XentLoss(nn.Module):

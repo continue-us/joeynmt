@@ -75,7 +75,7 @@ def recurrent_greedy(
         # pylint: disable=unused-variable
         for t in range(max_output_length):
             # decode one single step
-            predicted_emb, hidden, att_probs, prev_att_vector = model(
+            pred, hidden, att_probs, prev_att_vector = model(
                 return_type="decode",
                 trg_input=prev_y,
                 encoder_output=encoder_output,
@@ -100,27 +100,24 @@ def recurrent_greedy(
 
             # method 1: brute force
             # next_word = torch.argmin(
-            #     ((predicted_emb - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
+            #     ((pred - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
             # ) # LUT is VOC x DIM
 
             # method 2: faiss; would be best if dependencies were installed on cluster
-            # D, I = model.index.search(predicted_emb.squeeze(1).detach().cpu().numpy(), 1)
+            # D, I = model.index.search(pred.squeeze(1).detach().cpu().numpy(), 1)
 
             # method 3: kdTree
             # start = time.time()
-            # _, I = model.NNtree.query(predicted_emb.squeeze(1).detach().cpu().numpy())
+            # _, I = model.NNtree.query(pred.squeeze(1).detach().cpu().numpy())
             # print(f"Took {time.time()-start} seconds to query the tree for {I.shape[0]} words")
             # prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
 
             # method 4: (section 4.3) "highest vMF density"
-            losses = model.loss_function(
-                predicted_emb,
-                None,
-                trg_embed,
-                do_nearest_neighbor=True
+            losses = model.loss_function.nearest_neighbor_scores(
+                pred,
+                trg_embed
             )
-            prev_y = next_word = torch.argmin(losses, dim=-1).unsqueeze(1)
-            # print(next_word.shape, losses.shape)
+            prev_y = next_word = torch.argmax(losses, dim=-1).unsqueeze(1)
 
             # result is B x 1
             output.append(next_word.squeeze(1).detach().cpu().numpy())
@@ -188,12 +185,14 @@ def transformer_greedy(
                 trg_mask=trg_mask
             )
 
+            assert False, "reimplement along lines of final RNN version"
+
             # logits = logits[:, -1]
             # _, next_word = torch.max(logits, dim=1)
-            predicted_emb = logits[:,-1].unsqueeze(1)
+            pred = logits[:,-1].unsqueeze(1)
 
             losses = model._loss_function(
-                predicted_emb,
+                pred,
                 None,
                 trg_embed,
                 do_nearest_neighbor=True

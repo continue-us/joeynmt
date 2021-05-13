@@ -138,8 +138,6 @@ class PretrainedEmbeddings(nn.Module):
 
         self.lut.weight = nn.Parameter(torch.from_numpy(embedding_matrix).float())
 
-        self.trg_voc_start_idx = len(src_vocab.itos) + 1 # change this to index vector if order mixed
-
         # always freeze pretrained embeddings
         freeze_params(self)
 

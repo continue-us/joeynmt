@@ -6,6 +6,10 @@ sys.path.append("..")
 import os
 os.chdir("..")
 
+# cuda debug
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+
+
 from joeynmt.training import train
 from joeynmt.prediction import test
 from joeynmt.prediction import translate
