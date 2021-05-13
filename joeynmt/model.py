@@ -48,7 +48,7 @@ class Model(nn.Module):
         self.src_vocab = src_vocab
         self.trg_vocab = trg_vocab
 
-        self.src_embed = src_embed 
+        self.src_embed = src_embed
         self.trg_embed = self.src_embed
         self.encoder = encoder
         self.decoder = decoder
@@ -92,11 +92,12 @@ class Model(nn.Module):
                              "{`loss`, `encode`, `decode`}.")
 
         return_tuple = (None, None, None, None)
+
         if "loss" in return_type:
+
             assert self.loss_function is not None
 
-            if self.loss_function==vMF:
-                print('USING vMF')
+            if type(self.loss_function)==vMF:
 
                 preds, _, _, _ = self._encode_decode(**kwargs)
 
@@ -104,7 +105,10 @@ class Model(nn.Module):
                 batch_loss = self.loss_function(preds, kwargs["trg"], self.trg_embed)
 
             else:
-                raise NotImplementedError(f"TODO reimplement normal Xent loss option.. ({self.loss_function}")
+                # raise NotImplementedError(f"TODO reimplement normal Xent loss option..\
+                #     ({self.loss_function} => Make everything backwards compatible with vanilla \
+                #     joey again ......")
+
                 out, _, _, _ = self._encode_decode(**kwargs)
 
                 # compute log probs
@@ -190,15 +194,17 @@ class Model(nn.Module):
         :param trg_mask: mask for target steps
         :return: decoder outputs (outputs, hidden, att_probs, att_vectors)
         """
-        return self.decoder(trg_embed=self.trg_embed(trg_input),
-                            encoder_output=encoder_output,
-                            encoder_hidden=encoder_hidden,
-                            src_mask=src_mask,
-                            unroll_steps=unroll_steps,
-                            hidden=decoder_hidden,
-                            prev_att_vector=att_vector,
-                            trg_mask=trg_mask,
-                            **_kwargs)
+        return self.decoder(
+            trg_embed=self.trg_embed(trg_input),
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            src_mask=src_mask,
+            unroll_steps=unroll_steps,
+            hidden=decoder_hidden,
+            prev_att_vector=att_vector,
+            trg_mask=trg_mask,
+            **_kwargs
+        )
 
     def __repr__(self) -> str:
         """

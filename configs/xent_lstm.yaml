@@ -3,16 +3,16 @@ name: "iwslt14-deen-bpe"
 data:
     src: "de"
     trg: "en"
-    train: "test/data/iwslt14/train.bpe.32000"
-    dev: "test/data/iwslt14/valid.bpe.32000" 
-    test: "test/data/iwslt14/test.bpe.32000"
-    level: "bpe"
+    train: "test/data/iwslt14/train"
+    dev: "test/data/iwslt14/valid" 
+    test: "test/data/iwslt14/test"
+    level: "word"
     lowercase: True
     max_sent_length: 64
     src_voc_min_freq: 1
-    src_voc_limit: 32000
+    src_voc_limit: 3200 # FIXME change this later! 
     trg_voc_min_freq: 1
-    trg_voc_limit: 32000
+    trg_voc_limit: 3200
     src_vocab: "test/data/iwslt14/vocab.txt"
     trg_vocab: "test/data/iwslt14/vocab.txt"
 
@@ -23,14 +23,15 @@ testing:
 training:
     optimizer: "adam"
     normalization: "tokens"
-    learning_rate: 0.0005
+    learning_rate: 0.05
     batch_size: 128
     scheduling: "plateau"
     patience: 8
-    #clip_grad_norm: 1.0
+    clip_grad_norm: 1.0
     weight_decay: 0.0
     decrease_factor: 0.7
     early_stopping_metric: "loss"
+    loss_function: "xent"
     epochs: 100
     validation_freq: 100
     logging_freq: 80
@@ -66,3 +67,4 @@ model:
         input_feeding: True
         init_hidden: "bridge"
         attention: "bahdanau"
+        out_type: "vocab"

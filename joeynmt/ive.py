@@ -93,5 +93,6 @@ class LogCmkApprox(torch.autograd.Function):
 def logcmkapprox_autobackward(z):
   # approximation of LogC(m, k)
   v = m/2-1
-  return torch.sqrt((v+1)*(v+1)+z*z) - (v-1)*torch.log(v-1 +torch.sqrt((v+1)*(v+1)+z*z))
+  return - (torch.sqrt((v+1)*(v+1)+z*z) - (v-1)*torch.log(v-1 +torch.sqrt((v+1)*(v+1)+z*z)))
+
 

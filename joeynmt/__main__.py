@@ -1,12 +1,9 @@
 import argparse
 
 # HACK because i dont know how to properly import python modules:
-import sys
-sys.path.append("..")
-import os
-os.chdir("..")
 
 # cuda debug
+import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 
@@ -16,7 +13,7 @@ from joeynmt.prediction import translate
 
 
 def main():
-    ap = argparse.ArgumentParser("Joey NMT")
+    ap = argparse.ArgumentParser("Wallaby NMT")
 
     ap.add_argument("mode", choices=["train", "test", "translate"],
                     help="train a model or test or translate")

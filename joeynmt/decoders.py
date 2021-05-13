@@ -50,6 +50,7 @@ class RecurrentDecoder(Decoder):
                  init_hidden: str = "bridge",
                  input_feeding: bool = True,
                  freeze: bool = False,
+                 out_type: str = "embedding", # in ["embedding", "vocab"]
                  **kwargs) -> None:
         """
         Create a recurrent decoder with attention.
@@ -101,8 +102,13 @@ class RecurrentDecoder(Decoder):
         self.att_vector_layer = nn.Linear(
             hidden_size + encoder.output_size, hidden_size, bias=True)
 
-        self.output_layer = nn.Linear(hidden_size, emb_size, bias=False)
-        self._output_size = emb_size
+        out_type = out_type.lower()
+        assert out_type in ["embedding", "vocab"]
+
+        out_size = emb_size if "embed" in out_type else vocab_size
+
+        self.output_layer = nn.Linear(hidden_size, out_size, bias=False)
+        self._output_size = out_size
 
         if attention == "bahdanau":
             self.attention = BahdanauAttention(hidden_size=hidden_size,

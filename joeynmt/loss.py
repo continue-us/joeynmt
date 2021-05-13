@@ -20,10 +20,11 @@ class vMF(nn.Module):
         self.warmup = True
 
         # self.logcmk_fun = LogCmk.apply
-        self.logcmk_fun = LogCmkApprox.apply
-        # self.logcmk_fun = logcmkapprox_autobackward
+        # self.logcmk_fun = LogCmkApprox.apply
+        self.logcmk_fun = logcmkapprox_autobackward
 
     def increase_precision(self):
+        raise NotImplementedError
         self.logcmk_fun = LogCmk.apply
 
     def forward(self, outputs, targets, target_embeddings):
@@ -42,9 +43,11 @@ class vMF(nn.Module):
         lambda1 = 0.02
         kappa = outputs.norm(p=2, dim=-1) # ||e|| (l2 norm of predictions)
 
-        # vMF LOSS with 
+        # uncomment to test vMF LOSS with:
 
-        # both regularisations:
+        # just regularization
+        # nll_loss = lambda1 * kappa - lambda2 * cosines
+        nll_loss = lambda1 * kappa
 
         # regularisation 1:
         # nll_loss = - self.logcmk_fun(kappa) + lambda1 * kappa
@@ -52,7 +55,8 @@ class vMF(nn.Module):
         # no regularization:
         # nll_loss = - self.logcmk_fun(kappa)        
 
-        nll_loss = - self.logcmk_fun(kappa) - lambda2 * cosines + lambda1 * kappa
+        # both regularisations:
+        # nll_loss = - self.logcmk_fun(kappa) - lambda2 * cosines + lambda1 * kappa
 
         # discard padded positions
         mask = targets.ne(self.pad_index)
@@ -64,7 +68,9 @@ class vMF(nn.Module):
 
         return loss.sum()
 
-    def nearest_neihbor_scores(self, outputs, target_embeddings):
+    def nearest_neighbor_scores(self, outputs, target_embeddings):
+        # nearest neighbor decoding as described in some phrases in
+        # section 3 of https://arxiv.org/pdf/1812.04616 
 
         vocab = target_embeddings.lut.weight.data
         targets = torch.arange(vocab.shape[0]).unsqueeze(0).repeat(outputs.shape[0],1)

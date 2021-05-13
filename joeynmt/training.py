@@ -77,12 +77,20 @@ class TrainManager:
 
         # objective
         self.label_smoothing = train_config.get("label_smoothing", 0.0)
-        # self.model.loss_function = XentLoss(pad_index=self.model.pad_index,
-        #                                     smoothing=self.label_smoothing)
-        self.model.loss_function = vMF(
-            pad_index=self.model.pad_index,
-            embed_dim=self.model.trg_embed.embedding_dim
-        )
+
+        loss = train_config.get("loss_function", "vMF").lower()
+        if "xent" in loss or "cross" in loss:
+            self.model.loss_function = XentLoss(pad_index=self.model.pad_index,
+                smoothing=self.label_smoothing
+            )
+        elif "vmf" in loss or "mises" in loss or "fisher" in loss:
+            self.model.loss_function = vMF(
+                pad_index=self.model.pad_index,
+                embed_dim=self.model.trg_embed.embedding_dim
+            )
+        else:
+            raise ConfigurationError("Invalid loss_function " + loss)
+
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens", "none"]:
             raise ConfigurationError("Invalid normalization option."
@@ -513,21 +521,18 @@ class TrainManager:
 
         # compute variance of output layer grad
         if not hasattr(self, "grad_debug_cache"):
-            self.grad_debug_cache = []
+            self.grad_debug_cache = {}
         else:
-            # add flattened grad, e.g. output_layer:
-            self.grad_debug_cache.append(
-                self.model.decoder.output_layer.weight.grad.detach().view(-1).unsqueeze(0)
+            self._grad_debug_update(
+                "output_layer",
+                self.model.decoder.output_layer.weight
             )
 
-            log_freq = 20 # print variance every 20 updates
-            N = len(self.grad_debug_cache)
-            if N % log_freq == 0:
-                stacked_grads = torch.cat(self.grad_debug_cache, dim=0)
-                abs_mean = stacked_grads.abs().mean()
-                mean_var = torch.var(stacked_grads, dim=0).mean()
-                input(f"stats for {N} output grads: abs_mean: {abs_mean}, mean var: {mean_var}")
-
+            # freezed embeddings correctly have no grad:
+            # self._grad_debug_update(
+            #     "src_embed",
+            #     self.model.src_embed.lut.weight
+            # )
 
         # ---------------------------- END DEBUG ----------------------------
 
@@ -537,6 +542,28 @@ class TrainManager:
         self.stats.total_tokens += batch.ntokens
 
         return norm_batch_loss.item()
+
+    def _grad_debug_update(self, key, model_weight):
+        # add grad tensors to dict to keep track of them and record mean/var stats
+
+        # add flattened grad, e.g. output_layer:
+        if key not in self.grad_debug_cache:
+            self.grad_debug_cache[key] = []
+
+        self.grad_debug_cache[key] += [
+            model_weight.grad.detach().view(-1).unsqueeze(0)
+        ]
+
+        cache = self.grad_debug_cache[key]
+
+        log_freq = 20 # print variance every 20 updates
+        N = len(cache)
+        if N % log_freq == 0:
+            stacked_grads = torch.cat(cache, dim=0)
+            abs_mean = stacked_grads.abs().mean()
+            mean_var = torch.var(stacked_grads, dim=0).mean()
+            print(f"stats for {N} {key} grads: abs_mean: {abs_mean}, mean temporal var: {mean_var}")
+
 
     def _validate(self, valid_data, epoch_no):
         valid_start_time = time.time()

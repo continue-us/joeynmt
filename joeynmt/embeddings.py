@@ -123,20 +123,28 @@ class PretrainedEmbeddings(nn.Module):
             with open(np_embedding, "wb") as np_file:
                 pickle.dump(embedding_matrix, np_file)
 
-            exit(f"saved joint fasttext embedding matrix as np matrix at {np_embedding}")
+            print(f"Saved joint fasttext embedding matrix as np matrix at {np_embedding}")
 
         else:
 
             print("Loading saved embedding ...")
+
             with open(np_embedding, "rb") as np_file:
                 embedding_matrix = pickle.load(np_file)
+
             print("Loaded saved embedding.")
-            self.embedding_dim = embedding_matrix.shape[-1]
 
-        self.lut= nn.Embedding(len(src_vocab)+len(trg_vocab), self.embedding_dim,
-            padding_idx=trg_vocab.stoi[PAD_TOKEN])
+        self.embedding_dim = embedding_matrix.shape[-1]
 
-        self.lut.weight = nn.Parameter(torch.from_numpy(embedding_matrix).float())
+        self.lut = nn.Embedding(
+            len(src_vocab)+len(trg_vocab),
+            self.embedding_dim,
+            padding_idx=trg_vocab.stoi[PAD_TOKEN]
+        )
+
+        self.lut.weight = nn.Parameter(data=torch.from_numpy(embedding_matrix).float())
+        assert self.lut.weight is not None
+        # assert False, self.lut.weight.shape
 
         # always freeze pretrained embeddings
         freeze_params(self)

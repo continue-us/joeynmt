@@ -16,7 +16,7 @@ from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
 class Vocabulary:
     """ Vocabulary represents mapping between tokens and indices. """
 
-    def __init__(self, tokens: List[str] = None, file: str = None) -> None:
+    def __init__(self, tokens: List[str] = None, file: str = None, max_size: int = None) -> None:
         """
         Create vocabulary from list of tokens or file.
 
@@ -34,6 +34,9 @@ class Vocabulary:
 
         self.stoi = defaultdict(DEFAULT_UNK_ID)
         self.itos = []
+
+        self.max_size = max_size
+
         if tokens is not None:
             self._from_list(tokens)
         elif file is not None:
@@ -59,7 +62,9 @@ class Vocabulary:
         """
         tokens = []
         with open(file, "r") as open_file:
-            for line in open_file:
+            for i, line in enumerate(open_file):
+                if self.max_size is not None and i >= self.max_size:
+                    break
                 tokens.append(line.strip("\n"))
         self._from_list(tokens)
 
@@ -158,7 +163,7 @@ def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
 
     if vocab_file is not None:
         # load it from file
-        vocab = Vocabulary(file=vocab_file)
+        vocab = Vocabulary(file=vocab_file, max_size=max_size)
     else:
         # create newly
         def filter_min(counter: Counter, min_freq: int):

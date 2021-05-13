@@ -89,35 +89,37 @@ def recurrent_greedy(
 
             # for noobs:
             # greedy decoding: choose arg max over vocabulary in each step
-            # next_word = torch.argmax(logits, dim=-1)  # batch x time=1
-            # output.append(next_word.squeeze(1).detach().cpu().numpy())
-            # prev_y = next_word
-            # attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
-            # batch, max_src_length
+            if pred.shape[-1] != trg_embed.lut.weight.shape[-1]:
+                # FIXME put better check here ^ that doesnt rely on
+                # VOC_N != DIM
+                prev_y = next_word = torch.argmax(pred, dim=-1)  # batch x time=1
+                output.append(next_word.squeeze(1).detach().cpu().numpy())
+            else:
 
-            # for chads: 
-            # fast greedy nearest neighbor decoding:
+                # for chads: 
+                # fast greedy nearest neighbor decoding:
 
-            # method 1: brute force
-            # next_word = torch.argmin(
-            #     ((pred - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
-            # ) # LUT is VOC x DIM
+                # method 1: brute force
+                # next_word = torch.argmin(
+                #     ((pred - trg_embed.lut.weight.unsqueeze(0))**2).sum(dim=-1), dim=-1
+                # ) # LUT is VOC x DIM
 
-            # method 2: faiss; would be best if dependencies were installed on cluster
-            # D, I = model.index.search(pred.squeeze(1).detach().cpu().numpy(), 1)
+                # method 2: faiss; would be best if dependencies were installed on cluster
+                # D, I = model.index.search(pred.squeeze(1).detach().cpu().numpy(), 1)
 
-            # method 3: kdTree
-            # start = time.time()
-            # _, I = model.NNtree.query(pred.squeeze(1).detach().cpu().numpy())
-            # print(f"Took {time.time()-start} seconds to query the tree for {I.shape[0]} words")
-            # prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
+                # method 3: kdTree
+                # start = time.time()
+                # _, I = model.NNtree.query(pred.squeeze(1).detach().cpu().numpy())
+                # print(f"Took {time.time()-start} seconds to query the tree for {I.shape[0]} words")
+                # prev_y = next_word = torch.from_numpy(I).unsqueeze(1).to(model.decoder.output_layer.weight.device)
 
-            # method 4: (section 4.3) "highest vMF density"
-            losses = model.loss_function.nearest_neighbor_scores(
-                pred,
-                trg_embed
-            )
-            prev_y = next_word = torch.argmax(losses, dim=-1).unsqueeze(1)
+                # method 4: (section 4.3) "highest vMF density"
+
+                losses = model.loss_function.nearest_neighbor_scores(
+                    pred,
+                    trg_embed
+                )
+                prev_y = next_word = torch.argmax(losses, dim=-1).unsqueeze(1)
 
             # result is B x 1
             output.append(next_word.squeeze(1).detach().cpu().numpy())
